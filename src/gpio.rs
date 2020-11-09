@@ -1,6 +1,6 @@
 use pac::{DIO};
 use pac::Peripherals;
-use hal::digital::v2::{OutputPin, InputPin, ToggleableOutputPin};
+use hal::digital::{InputPin, OutputPin, ToggleableOutputPin};
 
 pub enum Mode {
     PullUp,
@@ -22,11 +22,11 @@ pub struct PA {
 impl OutputPin for Pin {
     type Error = ();
 
-    fn set_low(&mut self) -> Result<(), Self::Error> {
+    fn try_set_low(&mut self) -> Result<(), Self::Error> {
         unimplemented!()
     }
 
-    fn set_high(&mut self) -> Result<(), Self::Error> {
+    fn try_set_high(&mut self) -> Result<(), Self::Error> {
         unimplemented!()
     }
 }
@@ -34,11 +34,11 @@ impl OutputPin for Pin {
 impl InputPin for Pin {
     type Error = ();
 
-    fn is_high(&self) -> Result<bool, Self::Error> {
+    fn try_is_high(&self) -> Result<bool, Self::Error> {
         unimplemented!()
     }
 
-    fn is_low(&self) -> Result<bool, Self::Error> {
+    fn try_is_low(&self) -> Result<bool, Self::Error> {
         unimplemented!()
     }
 }
@@ -46,7 +46,7 @@ impl InputPin for Pin {
 impl ToggleableOutputPin for Pin {
     type Error = ();
 
-    fn toggle(&mut self) -> Result<(), Self::Error> {
+    fn try_toggle(&mut self) -> Result<(), Self::Error> {
         unimplemented!()
     }
 }
