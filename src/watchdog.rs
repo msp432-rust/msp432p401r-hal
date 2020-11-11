@@ -22,30 +22,6 @@ use core::convert::Infallible;
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
-struct WDTCTL<'wdt> {
-    wdt_a: &'wdt WDT_A,
-}
-
-impl<'wdt> WDTCTL<'wdt> {
-    const WDT_COUNTER_CLEAR: u16 = 0x0008;
-    const WDT_MODE_SELECT: u16 = 0x0010;
-    const WDT_CONTROL_HOLD: u16 = 0x0080;
-    const WDT_PASSWORD: u16 = 0x5A00;
-    const WDT_PASSWORD_MASK: u16 = 0x00FF;
-
-    pub fn set(&self, bits: u16) {
-        self.wdt_a.wdtctl.modify(|r, w| unsafe {
-            w.bits(WDTCTL::WDT_PASSWORD + ((r.bits() | bits) & WDTCTL::WDT_PASSWORD_MASK))
-        });
-    }
-
-    pub fn clear(&self, bits: u16) {
-        self.wdt_a.wdtctl.modify(|r, w| unsafe {
-            w.bits(WDTCTL::WDT_PASSWORD + ((r.bits() & bits) & WDTCTL::WDT_PASSWORD_MASK))
-        });
-    }
-}
-
 enum Mode {
     Timer,
     Watchdog,
@@ -84,8 +60,28 @@ impl State for Enabled {}
 
 impl State for Disabled {}
 
-fn set_bits(current_state: u16, bits: u16) -> u16 {
-    (current_state & !bits) | bits
+struct WDTCTL<'wdt> {
+    wdt_a: &'wdt WDT_A,
+}
+
+impl<'wdt> WDTCTL<'wdt> {
+    const WDT_COUNTER_CLEAR: u16 = 0x0008;
+    const WDT_MODE_SELECT: u16 = 0x0010;
+    const WDT_CONTROL_HOLD: u16 = 0x0080;
+    const WDT_PASSWORD: u16 = 0x5A00;
+    const WDT_PASSWORD_MASK: u16 = 0x00FF;
+
+    pub fn set(&self, bits: u16) {
+        self.wdt_a.wdtctl.modify(|r, w| unsafe {
+            w.bits(WDTCTL::WDT_PASSWORD + ((r.bits() | bits) & WDTCTL::WDT_PASSWORD_MASK))
+        });
+    }
+
+    pub fn clear(&self, bits: u16) {
+        self.wdt_a.wdtctl.modify(|r, w| unsafe {
+            w.bits(WDTCTL::WDT_PASSWORD + ((r.bits() & bits) & WDTCTL::WDT_PASSWORD_MASK))
+        });
+    }
 }
 
 pub struct WatchdogTimer<'wdt, S: State> {
