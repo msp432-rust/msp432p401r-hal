@@ -54,16 +54,22 @@ pub enum TimerInterval {
 
 pub struct Options(ClockSource, TimerInterval);
 
+pub trait State {}
+
 pub struct Enabled;
 
 pub struct Disabled;
 
-pub struct WatchdogTimer<'wdt, State> {
+impl State for Enabled {}
+
+impl State for Disabled {}
+
+pub struct WatchdogTimer<'wdt, S: State> {
     wdt_a: &'wdt WDT_A,
-    state: State,
+    state: S,
 }
 
-impl<'wdt, State> WatchdogTimer<'wdt, State> {
+impl<'wdt, S> WatchdogTimer<'wdt, S> where S: State {
     pub fn new(wdt_a: &WDT_A) -> WatchdogTimer<Enabled> {
         WatchdogTimer { wdt_a, state: Enabled }
     }
@@ -74,7 +80,7 @@ impl<'wdt, State> WatchdogTimer<'wdt, State> {
         });
     }
 
-    pub fn current_state(&self) -> &State {
+    pub fn current_state(&self) -> &S {
         &self.state
     }
 
