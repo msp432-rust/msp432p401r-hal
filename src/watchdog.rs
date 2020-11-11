@@ -18,8 +18,8 @@
  ****************************************************************************/
 
 use core::convert::Infallible;
-use hal::watchdog::*;
 
+pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
 const WDT_A_CTL_IS_0: u16 = 0x0000;              /*< Watchdog clock source / (2^(31)) (18:12:16 at 32.768 kHz)  */
@@ -45,22 +45,22 @@ const WDT_CONTROL_HOLD: u16 = 0x0080;
 const WDT_PASSWORD: u16 = 0x5A00;
 const WDT_PASSWORD_MASK: u16 = 0x00FF;
 
-pub struct Enabled;
-
-pub struct Disabled;
-
 enum Mode {
     Timer,
     Watchdog,
 }
 
-pub struct WatchdogTimer<T> {
-    wdt_a: WDT_A,
-    state: T,
+pub struct Enabled;
+
+pub struct Disabled;
+
+pub struct WatchdogTimer<'wdt, State> {
+    wdt_a: &'wdt WDT_A,
+    state: State,
 }
 
-impl<T> WatchdogTimer<T> {
-    pub fn new(wdt_a: WDT_A) -> WatchdogTimer<Enabled> {
+impl<'wdt, State> WatchdogTimer<'wdt, State> {
+    pub fn new(wdt_a: &WDT_A) -> WatchdogTimer<Enabled> {
         WatchdogTimer { wdt_a, state: Enabled }
     }
 
@@ -70,7 +70,7 @@ impl<T> WatchdogTimer<T> {
         });
     }
 
-    pub fn watchdog_read_state(&self) -> &T {
+    pub fn current_state(&self) -> &State {
         &self.state
     }
 
@@ -109,7 +109,7 @@ impl<T> WatchdogTimer<T> {
     }
 }
 
-impl WatchdogTimer<Enabled> {
+impl<'wdt> WatchdogTimer<'wdt, Enabled> {
     // We may set another period when watchdog is enabled
     pub fn set_period(&self, period: u16) {
         self.period_watchdog_timer(period);
@@ -126,24 +126,24 @@ impl WatchdogTimer<Enabled> {
     }
 }
 
-impl Enable for WatchdogTimer<Disabled> {
+impl<'wdt> Enable for WatchdogTimer<'wdt, Disabled> {
     type Error = Infallible;
     type Time = u16;
-    type Target = WatchdogTimer<Enabled>;
+    type Target = WatchdogTimer<'wdt, Enabled>;
 
-    fn try_start<T>(self, period: T) -> Result<WatchdogTimer<Enabled>, Self::Error> where T: Into<Self::Time>,
+    fn try_start<T>(self, period: T) -> Result<Self::Target, Self::Error> where T: Into<Self::Time>,
     {
         self.start_watchdog_timer();
 
         self.period_watchdog_timer(period.into());
 
-        Ok(WatchdogTimer { wdt_a: self.wdt_a, state: Enabled })
+        Ok(WatchdogTimer::<Enabled> { wdt_a: self.wdt_a, state: Enabled })
     }
 }
 
 // We only implement `Watchdog` for a watchdog that is enabled.
-// Application developers may not being able to `feed` an `Free<Disabled>`.
-impl Watchdog for WatchdogTimer<Enabled> {
+// Application developers may not being able to `feed` an `WatchdogTimer<Disabled>`.
+impl<'wdt> Watchdog for WatchdogTimer<'wdt, Enabled> {
     type Error = Infallible;
 
     fn try_feed(&mut self) -> Result<(), Self::Error> {
@@ -152,13 +152,13 @@ impl Watchdog for WatchdogTimer<Enabled> {
     }
 }
 
-impl Disable for WatchdogTimer<Enabled> {
+impl<'wdt> Disable for WatchdogTimer<'wdt, Enabled> {
     type Error = Infallible;
 
-    type Target = WatchdogTimer<Disabled>;
+    type Target = WatchdogTimer<'wdt, Disabled>;
 
     fn try_disable(self) -> Result<Self::Target, Self::Error> {
         self.stop_watchdog_timer();
-        Ok(WatchdogTimer { wdt_a: self.wdt_a, state: Disabled })
+        Ok(WatchdogTimer::<Disabled> { wdt_a: self.wdt_a, state: Disabled })
     }
 }
