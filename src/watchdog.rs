@@ -61,12 +61,11 @@ pub struct Disabled;
 pub struct WatchdogTimer<'wdt, State> {
     wdt_a: &'wdt WDT_A,
     state: State,
-    options: Options,
 }
 
 impl<'wdt, State> WatchdogTimer<'wdt, State> {
-    pub fn new(wdt_a: &WDT_A, options: Options) -> WatchdogTimer<Enabled> {
-        WatchdogTimer { wdt_a, state: Enabled, options }
+    pub fn new(wdt_a: &WDT_A) -> WatchdogTimer<Enabled> {
+        WatchdogTimer { wdt_a, state: Enabled }
     }
 
     fn alter_control_bits<F: Fn(u16) -> u16>(&self, f: F) {
@@ -148,7 +147,7 @@ impl<'wdt> Enable for WatchdogTimer<'wdt, Disabled> {
     {
         self.setup(period.into());
         self.start_watchdog_timer();
-        Ok(WatchdogTimer::<Enabled> { wdt_a: self.wdt_a, state: Enabled, options: self.options })
+        Ok(WatchdogTimer::<Enabled> { wdt_a: self.wdt_a, state: Enabled })
     }
 }
 
@@ -168,6 +167,6 @@ impl<'wdt> Disable for WatchdogTimer<'wdt, Enabled> {
 
     fn try_disable(self) -> Result<Self::Target, Self::Error> {
         self.stop_watchdog_timer();
-        Ok(WatchdogTimer::<Disabled> { wdt_a: self.wdt_a, state: Disabled, options: self.options })
+        Ok(WatchdogTimer::<Disabled> { wdt_a: self.wdt_a, state: Disabled })
     }
 }
