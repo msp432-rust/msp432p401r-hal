@@ -22,26 +22,9 @@ use core::convert::Infallible;
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
-const WDT_A_CTL_IS_0: u16 = 0x0000;              /*< Watchdog clock source / (2^(31)) (18:12:16 at 32.768 kHz)  */
-const WDT_A_CTL_IS_1: u16 = 0x0001;              /*< Watchdog clock source / (2^(27)) (01:08:16 at 32.768 kHz)  */
-const WDT_A_CTL_IS_2: u16 = 0x0002;              /*< Watchdog clock source / (2^(23)) (00:04:16 at 32.768 kHz)  */
-const WDT_A_CTL_IS_3: u16 = 0x0003;              /*< Watchdog clock source / (2^(19)) (00:00:16 at 32.768 kHz)  */
-const WDT_A_CTL_IS_4: u16 = 0x0004;              /*< Watchdog clock source / (2^(15)) (1 s at 32.768 kHz)       */
-const WDT_A_CTL_IS_5: u16 = 0x0005;              /*< Watchdog clock source / (2^(13)) (250 ms at 32.768 kHz)    */
-const WDT_A_CTL_IS_6: u16 = 0x0006;              /*< Watchdog clock source / (2^(9))  (15.625 ms at 32.768 kHz) */
-const WDT_A_CTL_IS_7: u16 = 0x0007;              /*< Watchdog clock source / (2^(6))  (1.95 ms at 32.768 kHz)   */
-
 const WDT_COUNTER_CLEAR: u16 = 0x0008;
-
 const WDT_MODE_SELECT: u16 = 0x0010;
-
-const WDT_CLOCK_SOURCE_SMCLK: u16 = 0x0000;
-const WDT_CLOCK_SOURCE_ACLK: u16 = 0x0020;
-const WDT_CLOCK_SOURCE_VLOCLK: u16 = 0x0040;
-const WDT_CLOCK_SOURCE_BCLK: u16 = 0x0060;
-
 const WDT_CONTROL_HOLD: u16 = 0x0080;
-
 const WDT_PASSWORD: u16 = 0x5A00;
 const WDT_PASSWORD_MASK: u16 = 0x00FF;
 
@@ -50,6 +33,27 @@ enum Mode {
     Watchdog,
 }
 
+pub enum ClockSource {
+    SMCLK = 0x0000,
+    ACLK = 0x0020,
+    VLOCLK = 0x0040,
+    BCLK = 0x0060,
+}
+
+/// Timer interval at powers of 2
+pub enum TimerInterval {
+    At31 = 0x0000,
+    At27 = 0x0001,
+    At23 = 0x0002,
+    At19 = 0x0003,
+    At15 = 0x0004,
+    At13 = 0x0005,
+    At9 = 0x0006,
+    At6 = 0x0007,
+}
+
+pub struct Options(ClockSource, TimerInterval);
+
 pub struct Enabled;
 
 pub struct Disabled;
@@ -57,11 +61,12 @@ pub struct Disabled;
 pub struct WatchdogTimer<'wdt, State> {
     wdt_a: &'wdt WDT_A,
     state: State,
+    options: Options,
 }
 
 impl<'wdt, State> WatchdogTimer<'wdt, State> {
-    pub fn new(wdt_a: &WDT_A) -> WatchdogTimer<Enabled> {
-        WatchdogTimer { wdt_a, state: Enabled }
+    pub fn new(wdt_a: &WDT_A, options: Options) -> WatchdogTimer<Enabled> {
+        WatchdogTimer { wdt_a, state: Enabled, options }
     }
 
     fn alter_control_bits<F: Fn(u16) -> u16>(&self, f: F) {
@@ -82,19 +87,32 @@ impl<'wdt, State> WatchdogTimer<'wdt, State> {
 
     fn start_watchdog_timer(&self) {
         self.alter_control_bits(|control: u16| {
-            (control | WDT_COUNTER_CLEAR) & !WDT_CONTROL_HOLD
+            (control | WDT_COUNTER_CLEAR)
+                & !WDT_CONTROL_HOLD
         });
     }
 
-    // Set the watchdog clock source and reset period
-    // TODO: This is still very confusing
-    fn period_watchdog_timer(&self, period: u16) {
+    fn set_timer_interval(&self, interval: TimerInterval) {
+        let bits = interval as u16;
         self.alter_control_bits(|control| {
-            control
-                | WDT_COUNTER_CLEAR
-                & !(WDT_A_CTL_IS_7 | WDT_CLOCK_SOURCE_BCLK)
-                | period & (WDT_A_CTL_IS_7 | WDT_CLOCK_SOURCE_BCLK)
+            (control | WDT_COUNTER_CLEAR)
+                & !bits
+                | bits
         });
+    }
+
+    fn set_clock_source(&self, source: ClockSource) {
+        let bits = source as u16;
+        self.alter_control_bits(|control| {
+            (control | WDT_COUNTER_CLEAR)
+                & !bits
+                | bits
+        });
+    }
+
+    fn setup(&self, options: Options) {
+        self.set_clock_source(options.0);
+        self.set_timer_interval(options.1);
     }
 
     fn change_mode(&self, mode: Mode) {
@@ -110,39 +128,30 @@ impl<'wdt, State> WatchdogTimer<'wdt, State> {
 }
 
 impl<'wdt> WatchdogTimer<'wdt, Enabled> {
-    // We may set another period when watchdog is enabled
-    pub fn set_period(&self, period: u16) {
-        self.period_watchdog_timer(period);
-    }
-
     // Set WDT to Watchdog mode
-    pub fn set_watchdog_mode(&self) {
+    pub fn select_watchdog_mode(&self) {
         self.change_mode(Mode::Watchdog)
     }
 
     // Set WDT to Timer mode
-    pub fn set_timer_mode(&self) {
+    pub fn select_timer_mode(&self) {
         self.change_mode(Mode::Timer)
     }
 }
 
 impl<'wdt> Enable for WatchdogTimer<'wdt, Disabled> {
     type Error = Infallible;
-    type Time = u16;
+    type Time = Options;
     type Target = WatchdogTimer<'wdt, Enabled>;
 
     fn try_start<T>(self, period: T) -> Result<Self::Target, Self::Error> where T: Into<Self::Time>,
     {
+        self.setup(period.into());
         self.start_watchdog_timer();
-
-        self.period_watchdog_timer(period.into());
-
-        Ok(WatchdogTimer::<Enabled> { wdt_a: self.wdt_a, state: Enabled })
+        Ok(WatchdogTimer::<Enabled> { wdt_a: self.wdt_a, state: Enabled, options: self.options })
     }
 }
 
-// We only implement `Watchdog` for a watchdog that is enabled.
-// Application developers may not being able to `feed` an `WatchdogTimer<Disabled>`.
 impl<'wdt> Watchdog for WatchdogTimer<'wdt, Enabled> {
     type Error = Infallible;
 
@@ -159,6 +168,6 @@ impl<'wdt> Disable for WatchdogTimer<'wdt, Enabled> {
 
     fn try_disable(self) -> Result<Self::Target, Self::Error> {
         self.stop_watchdog_timer();
-        Ok(WatchdogTimer::<Disabled> { wdt_a: self.wdt_a, state: Disabled })
+        Ok(WatchdogTimer::<Disabled> { wdt_a: self.wdt_a, state: Disabled, options: self.options })
     }
 }
