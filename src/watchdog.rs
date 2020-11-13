@@ -1,20 +1,14 @@
-// HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
+//! HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
 
-/*****************************************************************************
-    Config Example:
-
-    mod watchdog;
-    use pac::Peripherals;
-
-    let peripherals = Peripherals::take().unwrap();                             // Take Peripheral access
-    let watchdog = WatchdogTimer::<Enabled>::new(&peripherals.WDT_A);
-    watchdog.try_disable().unwrap();                                            // Disable the watchdog
-
-    let options = Options(ClockSource::BCLK, TimerInterval::At31);              // Config WDT time and clock source
-    watchdog.try_start(options).unwrap();                                       // Enable the watchdog
-    watchdog.try_feed();                                                        // Feed the watchdog counter
-
- ****************************************************************************/
+//! Usage example:
+//! ```
+//! #  use msp432p401r::Peripherals;
+//! #  use msp432p401r_hal::watchdog::{WatchdogTimer, Enabled, Disable, Enable};
+//!
+//! #  let peripherals = Peripherals::take().unwrap();                                // Take Peripheral access
+//! #  let watchdog = WatchdogTimer::<Enabled>::new(&peripherals.WDT_A);              // Setup WatchdogTimer
+//! #  watchdog.try_disable().unwrap();                                               // Disable the watchdog
+//! ```
 
 use core::convert::Infallible;
 

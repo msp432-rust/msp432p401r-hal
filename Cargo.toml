@@ -11,3 +11,6 @@ cortex-m = "0.6.0"
 cortex-m-rt = "0.6.10"
 msp432p401r-pac = "0.1.0"
 embedded-hal = "1.0.0-alpha.3"
+
+[features]
+rt =  ["msp432p401r-pac/rt"]
