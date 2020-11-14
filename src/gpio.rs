@@ -84,7 +84,7 @@ macro_rules! gpio {
                             pub fn into_pulled_up_input(self) -> $PI_i<Input<PulledUp>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & 0b0)
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
                                     w.$piren().bits(r.$piren().bits() | (0x01 << self.i))
@@ -98,7 +98,7 @@ macro_rules! gpio {
                             pub fn into_pulled_down_input(self) -> $PI_i<Input<PulledDown>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & 0b0)
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
                                     w.$piren().bits(r.$piren().bits() | (0x01 << self.i))
@@ -112,7 +112,7 @@ macro_rules! gpio {
                             pub fn into_floating_input(self) -> $PI_i<Input<Floating>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & 0b0)
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
                                     w.$piren().bits(r.$piren().bits() & !(0x01 << self.i))
@@ -124,7 +124,7 @@ macro_rules! gpio {
                             pub fn into_output(self) -> $PI_i<Output> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() | 0b1)
+                                    w.$pidir().bits(r.$pidir().bits() | (0x01 << self.i))
                                 });
                                 $PI_i::<Output> { i: $i, _mode: PhantomData }
                             }
@@ -152,7 +152,7 @@ macro_rules! gpio {
                             fn try_set_low(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() & 0b0)
+                                    w.$piout().bits(r.$piout().bits() & !(0x01 << self.i))
                                 });
                                 Ok(())
                             }
@@ -160,7 +160,7 @@ macro_rules! gpio {
                             fn try_set_high(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() | 0b1)
+                                    w.$piout().bits(r.$piout().bits() | (0x01 << self.i))
                                 });
                                 Ok(())
                             }
@@ -172,7 +172,7 @@ macro_rules! gpio {
                             fn try_toggle(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() ^ 0b1)
+                                    w.$piout().bits(r.$piout().bits() ^ (0x01 << self.i))
                                 });
                                 Ok(())
                             }
