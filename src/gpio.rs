@@ -38,7 +38,7 @@ pub struct Input<T> where T: InputMode {
     _mode: PhantomData<T>
 }
 
-// TODO: Implement OutputDrive
+// TODO: Implement OutputDrive for P2_0 ~ P2_3
 pub struct Output;
 
 macro_rules! gpio {
@@ -48,7 +48,7 @@ macro_rules! gpio {
         ])+
     }) => {
             pub mod $portx {
-                use hal::digital::{OutputPin, InputPin, ToggleableOutputPin};
+                use hal::digital::{OutputPin, InputPin, ToggleableOutputPin, PinState};
                 use core::marker::PhantomData;
                 use super::{Input, Output, InputMode, PulledUp, PulledDown, Floating, GPIO};
                 use pac::DIO;
@@ -69,136 +69,65 @@ macro_rules! gpio {
                     /// Pin Implementation (P1_1, P1_2...)
                     $(
                         pub struct $PI_i<MODE> {
-                            i: u8,
                             _mode: PhantomData<MODE>,
                         }
 
                         impl<MODE> $PI_i<MODE> {
                             /// Get default state for Pin
                             pub fn default() -> $PI_i<$MODE> {
-                                $PI_i::<$MODE> {
-                                    i: $i,
-                                    _mode: PhantomData,
-                                }
+                                $PI_i::<$MODE> { _mode: PhantomData }
                             }
 
                             /// Setup PullUp resistor and configures Pin to Input mode
-                            fn _into_pulled_up_input(self) -> $PI_i<Input<PulledUp>> {
+                            pub fn into_pulled_up_input() -> $PI_i<Input<PulledUp>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << $i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
-                                    w.$piren().bits(r.$piren().bits() | (0x01 << self.i))
+                                    w.$piren().bits(r.$piren().bits() | (0x01 << $i))
                                 });
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() | (0x01 << self.i))
+                                    w.$piout().bits(r.$piout().bits() | (0x01 << $i))
                                 });
-                                $PI_i::<Input<PulledUp>> { i: $i, _mode: PhantomData }
+                                $PI_i::<Input<PulledUp>> { _mode: PhantomData }
                             }
 
                             /// Setup PullDown resistor and configures Pin to Input mode
-                            fn _into_pulled_down_input(self) -> $PI_i<Input<PulledDown>> {
+                            pub fn into_pulled_down_input() -> $PI_i<Input<PulledDown>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << $i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
-                                    w.$piren().bits(r.$piren().bits() | (0x01 << self.i))
+                                    w.$piren().bits(r.$piren().bits() | (0x01 << $i))
                                 });
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() & !(0x01 << self.i))
+                                    w.$piout().bits(r.$piout().bits() & !(0x01 << $i))
                                 });
-                                $PI_i::<Input<PulledDown>> { i: $i, _mode: PhantomData }
+                                $PI_i::<Input<PulledDown>> { _mode: PhantomData }
                             }
 
                             /// Disables PullUp/PullDown resistor and configures Pin to Input mode
-                            fn _into_floating_input(self) -> $PI_i<Input<Floating>> {
+                            pub fn into_floating_input() -> $PI_i<Input<Floating>> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << self.i))
+                                    w.$pidir().bits(r.$pidir().bits() & !(0x01 << $i))
                                 });
                                 dio.$pxren.modify(|r,w| unsafe {
-                                    w.$piren().bits(r.$piren().bits() & !(0x01 << self.i))
+                                    w.$piren().bits(r.$piren().bits() & !(0x01 << $i))
                                 });
-                                $PI_i::<Input<Floating>> { i: $i, _mode: PhantomData }
+                                $PI_i::<Input<Floating>> { _mode: PhantomData }
                             }
 
                             // TODO: Implement Drive Selection register
-                            fn _into_output(self) -> $PI_i<Output> {
+                            /// Setup Pin to output mode
+                            pub fn into_output() -> $PI_i<Output> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxdir.modify(|r,w| unsafe {
-                                    w.$pidir().bits(r.$pidir().bits() | (0x01 << self.i))
+                                    w.$pidir().bits(r.$pidir().bits() | (0x01 << $i))
                                 });
-                                $PI_i::<Output> { i: $i, _mode: PhantomData }
-                            }
-                        }
-
-                        impl $PI_i<Input<Floating>> {
-                            /// Setup PullUp resistor and configures Pin to Input mode
-                            pub fn into_pulled_up_input(self) -> $PI_i<Input<PulledUp>> {
-                                self._into_pulled_up_input()
-                            }
-
-                            /// Setup PullDown resistor and configures Pin to Input mode
-                            pub fn into_pulled_down_input(self) -> $PI_i<Input<PulledDown>> {
-                                self._into_pulled_down_input()
-                            }
-
-                            /// Configures Pin to output mode
-                            pub fn into_output(self) -> $PI_i<Output> {
-                                self._into_output()
-                            }
-                        }
-
-                        impl $PI_i<Input<PulledUp>> {
-                            /// Disables PullUp resistor and configures Pin to Input mode
-                            pub fn into_floating_input(self) -> $PI_i<Input<Floating>> {
-                                self._into_floating_input()
-                            }
-
-                            /// Setup PullDown resistor and configures Pin to Input mode
-                            pub fn into_pulled_down_input(self) -> $PI_i<Input<PulledDown>> {
-                                self._into_pulled_down_input()
-                            }
-
-                            /// Configures Pin to output mode
-                            pub fn into_output(self) -> $PI_i<Output> {
-                                self._into_output()
-                            }
-                        }
-
-                        impl $PI_i<Input<PulledDown>> {
-                            /// Disables PullDown resistor and configures Pin to Input mode
-                            pub fn into_floating_input(self) -> $PI_i<Input<Floating>> {
-                                self._into_floating_input()
-                            }
-
-                            /// Setup PullUp resistor and configures Pin to Input mode
-                            pub fn into_pulled_up_input(self) -> $PI_i<Input<PulledUp>> {
-                                self._into_pulled_up_input()
-                            }
-
-                            /// Configures Pin to output mode
-                            pub fn into_output(self) -> $PI_i<Output> {
-                                self._into_output()
-                            }
-                        }
-
-                        impl $PI_i<Output> {
-                            /// Disables PullDown/PullUp resistor and configures Pin to Input mode
-                            pub fn into_floating_input(self) -> $PI_i<Input<Floating>> {
-                                self._into_floating_input()
-                            }
-
-                            /// Setup PullUp resistor and configures Pin to Input mode
-                            pub fn into_pulled_up_input(self) -> $PI_i<Input<PulledUp>> {
-                                self._into_pulled_up_input()
-                            }
-
-                            /// Setup PullDown resistor and configures Pin to Input mode
-                            pub fn into_pulled_down_input(self) -> $PI_i<Input<PulledDown>> {
-                                self._into_pulled_down_input()
+                                $PI_i::<Output> { _mode: PhantomData }
                             }
                         }
 
@@ -207,13 +136,13 @@ macro_rules! gpio {
 
                             fn try_is_high(&self) -> Result<bool, Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
-                                let state = (dio.$pxin.read().$piin().bits() & (0x01 << self.i)) > 0;
+                                let state = (dio.$pxin.read().$piin().bits() & (0x01 << $i)) > 0;
                                 Ok(state)
                             }
 
                             fn try_is_low(&self) -> Result<bool, Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
-                                let state = (!dio.$pxin.read().$piin().bits() & (0x01 << self.i)) > 0;
+                                let state = (!dio.$pxin.read().$piin().bits() & (0x01 << $i)) > 0;
                                 Ok(state)
                             }
                         }
@@ -224,7 +153,7 @@ macro_rules! gpio {
                             fn try_set_low(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() & !(0x01 << self.i))
+                                    w.$piout().bits(r.$piout().bits() & !(0x01 << $i))
                                 });
                                 Ok(())
                             }
@@ -232,7 +161,7 @@ macro_rules! gpio {
                             fn try_set_high(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() | (0x01 << self.i))
+                                    w.$piout().bits(r.$piout().bits() | (0x01 << $i))
                                 });
                                 Ok(())
                             }
@@ -243,8 +172,8 @@ macro_rules! gpio {
 
                             fn try_toggle(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*DIO::ptr() };
-                                dio.$pxout.modify(|r,w| unsafe {
-                                    w.$piout().bits(r.$piout().bits() ^ (0x01 << self.i))
+                                    dio.$pxout.modify(|r,w| unsafe {
+                                    w.$piout().bits(r.$piout().bits() ^ (0x01 << $i))
                                 });
                                 Ok(())
                             }
