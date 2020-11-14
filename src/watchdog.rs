@@ -2,12 +2,10 @@
 
 //! Usage example:
 //! ```
-//! #  use msp432p401r::Peripherals;
 //! #  use msp432p401r_hal::watchdog::{WatchdogTimer, Enabled, Disable, Enable};
 //!
-//! #  let peripherals = Peripherals::take().unwrap();                                // Take Peripheral access
-//! #  let watchdog = WatchdogTimer::<Enabled>::new(&peripherals.WDT_A);              // Setup WatchdogTimer
-//! #  watchdog.try_disable().unwrap();                                               // Disable the watchdog
+//! #  let watchdog = WatchdogTimer::<Enabled>::new();            // Setup WatchdogTimer
+//! #  watchdog.try_disable().unwrap();                           // Disable the watchdog
 //! ```
 
 use core::convert::Infallible;
@@ -53,11 +51,9 @@ impl State for Enabled {}
 
 impl State for Disabled {}
 
-struct WDT<'wdt> {
-    wdt_a: &'wdt WDT_A,
-}
+struct WDT;
 
-impl<'wdt> WDT<'wdt> {
+impl WDT {
     const WDT_COUNTER_CLEAR: u16 = 0x0008;
     const WDT_MODE_SELECT: u16 = 0x0010;
     const WDT_CONTROL_HOLD: u16 = 0x0080;
@@ -69,27 +65,29 @@ impl<'wdt> WDT<'wdt> {
     }
 
     pub fn set(&self, bits: u16) {
-        self.wdt_a.wdtctl.modify(|r, w| unsafe {
+        let wdt_a = unsafe { &*WDT_A::ptr() };
+        wdt_a.wdtctl.modify(|r, w| unsafe {
             w.bits(WDT::with_password(r.bits() | bits))
         });
     }
 
     pub fn clear(&self, bits: u16) {
-        self.wdt_a.wdtctl.modify(|r, w| unsafe {
+        let wdt_a = unsafe { &*WDT_A::ptr() };
+        wdt_a.wdtctl.modify(|r, w| unsafe {
             w.bits(WDT::with_password(r.bits() & bits))
         });
     }
 }
 
-pub struct WatchdogTimer<'wdt, S: State> {
-    wdt: WDT<'wdt>,
+pub struct WatchdogTimer<S: State> {
+    wdt: WDT,
     state: S,
 }
 
-impl<'wdt, S> WatchdogTimer<'wdt, S> where S: State {
-    pub fn new(wdt_a: &WDT_A) -> WatchdogTimer<Enabled> {
+impl<S> WatchdogTimer<S> where S: State {
+    pub fn new() -> WatchdogTimer<Enabled> {
         WatchdogTimer {
-            wdt: WDT { wdt_a },
+            wdt: WDT {},
             state: Enabled,
         }
     }
@@ -131,7 +129,7 @@ impl<'wdt, S> WatchdogTimer<'wdt, S> where S: State {
     }
 }
 
-impl<'wdt> WatchdogTimer<'wdt, Enabled> {
+impl WatchdogTimer<Enabled> {
     /// Set WDT to Watchdog mode
     pub fn select_watchdog_mode(&self) {
         self.change_mode(Mode::Watchdog)
@@ -143,10 +141,10 @@ impl<'wdt> WatchdogTimer<'wdt, Enabled> {
     }
 }
 
-impl<'wdt> Enable for WatchdogTimer<'wdt, Disabled> {
+impl Enable for WatchdogTimer<Disabled> {
     type Error = Infallible;
     type Time = Options;
-    type Target = WatchdogTimer<'wdt, Enabled>;
+    type Target = WatchdogTimer<Enabled>;
 
     fn try_start<T>(self, period: T) -> Result<Self::Target, Self::Error> where T: Into<Self::Time>,
     {
@@ -156,7 +154,7 @@ impl<'wdt> Enable for WatchdogTimer<'wdt, Disabled> {
     }
 }
 
-impl<'wdt> Watchdog for WatchdogTimer<'wdt, Enabled> {
+impl<'wdt> Watchdog for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
     fn try_feed(&mut self) -> Result<(), Self::Error> {
@@ -165,10 +163,10 @@ impl<'wdt> Watchdog for WatchdogTimer<'wdt, Enabled> {
     }
 }
 
-impl<'wdt> Disable for WatchdogTimer<'wdt, Enabled> {
+impl<'wdt> Disable for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
-    type Target = WatchdogTimer<'wdt, Disabled>;
+    type Target = WatchdogTimer<Disabled>;
 
     fn try_disable(self) -> Result<Self::Target, Self::Error> {
         self.stop_watchdog_timer();
