@@ -154,7 +154,7 @@ impl Enable for WatchdogTimer<Disabled> {
     }
 }
 
-impl<'wdt> Watchdog for WatchdogTimer<Enabled> {
+impl Watchdog for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
     fn try_feed(&mut self) -> Result<(), Self::Error> {
@@ -163,7 +163,7 @@ impl<'wdt> Watchdog for WatchdogTimer<Enabled> {
     }
 }
 
-impl<'wdt> Disable for WatchdogTimer<Enabled> {
+impl Disable for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
     type Target = WatchdogTimer<Disabled>;
