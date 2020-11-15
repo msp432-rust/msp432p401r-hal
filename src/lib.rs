@@ -1,3 +1,6 @@
-use msp432p401r as pac;
-use embedded_hal as hal;
+#![no_std]
 
+extern crate msp432p401r as pac;
+extern crate embedded_hal as hal;
+
+pub mod watchdog;
