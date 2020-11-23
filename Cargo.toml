@@ -2,6 +2,10 @@
 name = "msp432p401r-hal"
 version = "0.1.0"
 authors = ["Caio Tavares <caio.tavares11@gmail.com>", "José Cláudio S. Jr. <joseclaudio.silvajr@gmail.com>"]
+description = "MSP432P401R Hardware Abstraction Layer"
+keywords = ["msp432p401r", "arm", "hal", "cortex-m4"]
+repository = "https://github.com/msp432-rust/msp432p401r-hal"
+license-file = "LICENSE"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
