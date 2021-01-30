@@ -6,4 +6,4 @@ extern crate embedded_hal as hal;
 pub mod watchdog;
 pub mod gpio;
 pub mod time;
-pub mod cs;
+pub mod clock;
