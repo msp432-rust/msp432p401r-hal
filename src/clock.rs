@@ -321,7 +321,7 @@ macro_rules! make_clkconf {
 
 impl <'a>ClockConfig<'a, NoClockDefined, NoClockDefined> {
     /// Converts CS into a fresh, unconfigured clock builder object
-    pub fn new(self) -> Self {
+    pub fn new() -> Self {
 
         let cs = unsafe { &*CS::ptr() };
 
