@@ -77,31 +77,48 @@ pub const HFXTMAXCLK: u32 = 48_000_000;
 
 ///Selectable HFXTCLK frequencies
 #[derive(Clone, Copy)]
-pub struct HfxtclkFreqSel {
-    hfxt_freqsel: u32,
+pub enum HfxtclkFreqSel {
+    // 1-4 MHz
+    _1_4MHz,
+    // 4-8 MHz
+    _4_8MHz,
+    // 8-16 MHz
+    _8_16MHz,
+    // 16-24 MHz
+    _16_24MHz,
+    // 24-32 MHz
+    _24_32MHz,
+    // 32-40 MHz
+    _32_40MHz,
+    // 40-48 MHz
+    _40_48MHz,
 }
 
 impl HfxtclkFreqSel {
     #[inline(always)]
     fn hfxtsel(&self) -> HFXTFREQ_A {
-        match *&self.hfxt_freqsel {
-            1_000_000 ..= 4_000_000 => HFXTFREQ_A::HFXTFREQ_0,
-            4_000_001 ..= 8_000_000 => HFXTFREQ_A::HFXTFREQ_1,
-            8_000_001 ..= 16_000_000 => HFXTFREQ_A::HFXTFREQ_2,
-            16_000_001 ..= 24_000_000 => HFXTFREQ_A::HFXTFREQ_3,
-            24_000_001 ..= 32_000_000 => HFXTFREQ_A::HFXTFREQ_4,
-            32_000_001 ..= 40_000_000 => HFXTFREQ_A::HFXTFREQ_5,
-            40_000_001 ..= 48_000_000 => HFXTFREQ_A::HFXTFREQ_6,
-            _=> panic!("Crystal out of range"),
+        match *self {
+            HfxtclkFreqSel::_1_4MHz => HFXTFREQ_A::HFXTFREQ_0,
+            HfxtclkFreqSel::_4_8MHz => HFXTFREQ_A::HFXTFREQ_1,
+            HfxtclkFreqSel::_8_16MHz => HFXTFREQ_A::HFXTFREQ_2,
+            HfxtclkFreqSel::_16_24MHz => HFXTFREQ_A::HFXTFREQ_3,
+            HfxtclkFreqSel::_24_32MHz => HFXTFREQ_A::HFXTFREQ_4,
+            HfxtclkFreqSel::_32_40MHz => HFXTFREQ_A::HFXTFREQ_5,
+            HfxtclkFreqSel::_40_48MHz => HFXTFREQ_A::HFXTFREQ_6,
         }
     }
 
     /// Numerical frequency
     #[inline]
     pub fn freq(&self) -> u32 {
-        match *&self.hfxt_freqsel {
-            HFXTMINCLK ..= HFXTMINCLK => *&self.hfxt_freqsel as u32,
-            _=> panic!("Crystal out of range"),
+        match *self {
+            HfxtclkFreqSel::_1_4MHz => 4_000_000,
+            HfxtclkFreqSel::_4_8MHz => 8_000_000,
+            HfxtclkFreqSel::_8_16MHz => 16_000_000,
+            HfxtclkFreqSel::_16_24MHz => 24_000_000,
+            HfxtclkFreqSel::_24_32MHz => 32_000_000,
+            HfxtclkFreqSel::_32_40MHz => 40_000_000,
+            HfxtclkFreqSel::_40_48MHz => 48_000_000,
         }
     }
 }
@@ -445,13 +462,30 @@ impl<'a, MCLK, SMCLK> ClockConfig<'a, MCLK, SMCLK> {
     }
 }
 
+#[inline(always)]
+fn fll_off() {
+    const FLAG: u8 = 1 << 6;
+    unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+}
+
+#[inline(always)]
+fn fll_on() {
+    const FLAG: u8 = 1 << 6;
+    unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
+}
+
 impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn configure_dco_fll(&self) {
         // Run DCO configuration
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
-            self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) })
+            fll_off();
+            self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            fll_on();
             };
         }
 
