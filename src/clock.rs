@@ -53,15 +53,16 @@ BCLK is restricted to a maximum frequency of 32.768 kHz
 use crate::time::Hertz;
 use pac::cs::csctl0::DCORSEL_A;
 use pac::cs::csctl2::HFXTFREQ_A;
-pub use pac::cs::csctl1::{SELS_A, SELA_A, SELM_A, DIVM_A, DIVS_A as SmclkDiv};
+pub use pac::cs::csctl1::{SELS_A, SELA_A, SELM_A, DIVM_A, DIVS_A};
 use pac::cs::csclken::REFOFSEL_A;
+use pac::CS;
 
 /// Typestate for `ClockConfig` that represents unconfigured clocks
 pub struct NoClockDefined;
 /// Typestate for `ClockConfig` that represents a configured MCLK
 pub struct MclkDefined(MclkSel);
 /// Typestate for `ClockConfig` that represents a configured SMCLK
-pub struct SmclkDefined(SmclkDiv);
+pub struct SmclkDefined(DIVS_A);
 
 /// MODCLK frequency
 pub const MODCLK: u32 = 25_000_000;
@@ -283,12 +284,12 @@ impl AclkSel {
 // the clock once, so just keep it hidden
 #[doc(hidden)]
 pub trait SmclkState {
-    fn div(&self) -> Option<SmclkDiv>;
+    fn div(&self) -> Option<DIVS_A>;
 }
 
 impl SmclkState for SmclkDefined {
     #[inline(always)]
-    fn div(&self) -> Option<SmclkDiv> {
+    fn div(&self) -> Option<DIVS_A> {
         Some(*&self.0)
     }
 }
@@ -296,8 +297,8 @@ impl SmclkState for SmclkDefined {
 /// Builder object that configures system clocks
 /// Can only commit configurations to hardware if both MCLK (HSMCLK) and SMCLK settings have been
 /// configured. ACLK and BCLK configurations are optional, with its default source being REFOCLK.
-pub struct ClockConfig<MCLK, SMCLK> {
-    periph: pac::CS,
+pub struct ClockConfig<'a, MCLK, SMCLK> {
+    periph: &'a pac::cs::RegisterBlock,
     mclk: MCLK,
     mclk_div: DIVM_A,
     aclk_sel: AclkSel,
@@ -318,9 +319,12 @@ macro_rules! make_clkconf {
     };
 }
 
-impl ClockConfig<NoClockDefined, NoClockDefined> {
+impl <'a>ClockConfig<'a, NoClockDefined, NoClockDefined> {
     /// Converts CS into a fresh, unconfigured clock builder object
-    pub fn new(cs: pac::CS) -> Self {
+    pub fn new(self) -> Self {
+
+        let cs = unsafe { &*CS::ptr() };
+
         ClockConfig {
             periph: cs,
             smclk: NoClockDefined,
@@ -332,7 +336,7 @@ impl ClockConfig<NoClockDefined, NoClockDefined> {
     }
 }
 
-impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
+impl<'a, MCLK, SMCLK> ClockConfig<'a, MCLK, SMCLK> {
     /// Select LFXTCLK for ACLK
     #[inline]
     pub fn aclk_lfxtclk(mut self) -> Self {
@@ -356,7 +360,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select REFOCLK for MCLK and set the MCLK divider. Frequency is `REFOCLK / mclk_div` Hz.
     #[inline]
-    pub fn mclk_refoclk(self, target_freq: RefoclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_refoclk(self, target_freq: RefoclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Refoclk(target_freq);
 
@@ -369,7 +373,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select LFXTCLK for MCLK and set the MCLK divider. Frequency is `LFXTCLK / mclk_div` Hz.
     #[inline]
-    pub fn mclk_lfxtclk(self, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_lfxtclk(self, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Lfxtclk;
 
@@ -382,7 +386,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select MODCLK for MCLK and set the MCLK divider. Frequency is `MODCLK / mclk_div` Hz.
     #[inline]
-    pub fn mclk_modclk(self, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_modclk(self, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Modclk;
 
@@ -395,7 +399,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select VLOCLK for MCLK and set the MCLK divider. Frequency is `VLO / mclk_div` Hz.
     #[inline]
-    pub fn mclk_vloclk(self, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_vloclk(self, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Vloclk;
 
@@ -408,7 +412,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select HFXTCLK for MCLK and set the MCLK divider. Frequency is `HFXTCLK / mclk_div` Hz.
     #[inline]
-    pub fn mclk_hfxtclk(self, target_freq: HfxtclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_hfxtclk(self, target_freq: HfxtclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Hfxtclk(target_freq);
 
@@ -423,7 +427,7 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     /// This setting selects the default factory trim for DCO trimming and performs no extra
     /// calibration, so only a select few frequency targets can be selected.
     #[inline]
-    pub fn mclk_dcoclk(self, target_freq: DcoclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_dcoclk(self, target_freq: DcoclkFreqSel, mclk_div: DIVM_A) -> ClockConfig<'a, MclkDefined, SMCLK> {
 
         let smclk_sel = HSMclkSel::Dcoclk(target_freq);
 
@@ -436,12 +440,12 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Enable SMCLK and set SMCLK divider, which divides the MCLK frequency
     #[inline]
-    pub fn smclk_div(self, div: SmclkDiv) -> ClockConfig<MCLK, SmclkDefined> {
+    pub fn smclk_div(self, div: DIVS_A) -> ClockConfig<'a, MCLK, SmclkDefined> {
         make_clkconf!(self, self.mclk, SmclkDefined(div))
     }
 }
 
-impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
+impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn configure_dco_fll(&self) {
@@ -485,7 +489,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
                 .variant(self.smclk_sel.sels());
             match self.smclk.div() {            // SMCLK DIV
                 Some(div) => w.divs().variant(div),
-                None => w.divs().variant(SmclkDiv::DIVS_0),
+                None => w.divs().variant(DIVS_A::DIVS_0),
             }
         });
     }
@@ -509,7 +513,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
     }
 }
 
-impl ClockConfig<MclkDefined, SmclkDefined> {
+impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
 
     /// Apply clock configuration to hardware and return clock objects
     #[inline]
