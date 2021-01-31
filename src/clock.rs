@@ -462,35 +462,20 @@ impl<'a, MCLK, SMCLK> ClockConfig<'a, MCLK, SMCLK> {
     }
 }
 
-//    /* Saving status and temporarily disabling NMIs for UCS faults */
-//     bNMIStatus = SysCtl_getNMISourceStatus() & SYSCTL_CS_SRC;
-//     SysCtl_disableNMISource(SYSCTL_CS_SRC);
-
-#[inline(always)]
-fn fll_off() {
-   // const FLAG: u8 = 1 << 6;
-   // unsafe { llvm_asm!("bis.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-}
-
-#[inline(always)]
-fn fll_on() {
-    //const FLAG: u8 = 1 << 6;
-    //unsafe { llvm_asm!("bic.b $0, SR" :: "i"(FLAG) : "memory" : "volatile") };
-}
-
 impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn configure_dco_fll(&self) {
         // Run DCO configuration
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
-            fll_off();
             self.periph.csctl0.modify(|r, w| unsafe { w.bits(r.bits() & 0x00) });
             self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
-            fll_on();
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
             };
         }
 
@@ -498,7 +483,13 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
     fn configure_hfxt(&self) {
         // Run HFXT configuration
         if let MclkSel::Hfxtclk(target_freq) = self.mclk.0 {
-            self.periph.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) })
+            self.periph.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) });
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
         };
     }
 
@@ -569,9 +560,26 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
         self.wait_clk(CS_STAT);
 
         self.configure_dco_fll();
+
+        /* Waiting for the clock source ready bit to be valid before changing */
+        self.wait_clk(CS_STAT);
+
         self.configure_hfxt();
+
+        /* Waiting for the clock source ready bit to be valid before changing */
+        self.wait_clk(CS_STAT);
+
         self.configure_refo();
+
+        /* Waiting for the clock source ready bit to be valid before changing */
+        self.wait_clk(CS_STAT);
+
         self.configure_cs();
+
+        /* Waiting for the clock source ready bit to be valid before changing */
+        self.wait_clk(CS_STAT);
+
+        self.cs_key(false);
 
         let aclk_freq :u32 = self.aclk_sel.freq().clone();
         let hsmclk_freq :u32 = self.smclk_sel.freq().clone();
@@ -584,11 +592,6 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
             smclk: Hertz(_smclk_freq),
             bclk: Hertz(aclk_freq.clone()),
         };
-
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
-
-        self.cs_key(false);
 
         clocks
     }
