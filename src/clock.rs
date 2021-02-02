@@ -468,8 +468,10 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
     fn configure_dco_fll(&self) {
         // Run DCO configuration
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
-            self.periph.csctl0.modify(|r, w| unsafe { w.bits(r.bits() & 0x00) });
             self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
@@ -484,6 +486,9 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
         // Run HFXT configuration
         if let MclkSel::Hfxtclk(target_freq) = self.mclk.0 {
             self.periph.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) });
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
             unsafe{llvm_asm!("NOP")};
@@ -539,7 +544,9 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn wait_clk(&self, flag: u8) {
-        while ((self.periph.csstat.read().bits() >> 24) as u8 & flag) != flag {}
+        while ((self.periph.csstat.read().bits() >> 24) as u8 & flag) != flag {
+            unsafe{llvm_asm!("NOP")};
+        };
     }
 }
 
@@ -551,6 +558,14 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
 
         /// CSKEY
         const CS_STAT: u8 = 0b00011111;
+
+        let mut status: u32;
+
+        /* save the PRIMASK into 'status' */
+        unsafe { llvm_asm!("mrs $0, PRIMASK" : "=r" (status) : : : "volatile") };
+
+        /* set PRIMASK to disable interrupts */
+        unsafe { llvm_asm!("cpsid i" : : : : "volatile") };
 
         let mclk_freq = self.mclk.0.freq().clone() >> (self.mclk_div.clone() as u32);
 
@@ -580,6 +595,9 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
         self.wait_clk(CS_STAT);
 
         self.cs_key(false);
+
+        /* restore PRIMASK from 'status' */
+        unsafe { llvm_asm!("mrs PRIMASK, %0" : : "r" (status) : : "volatile") };
 
         let aclk_freq :u32 = self.aclk_sel.freq().clone();
         let hsmclk_freq :u32 = self.smclk_sel.freq().clone();
