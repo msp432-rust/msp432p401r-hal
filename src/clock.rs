@@ -597,7 +597,7 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
         self.cs_key(false);
 
         /* restore PRIMASK from 'status' */
-        unsafe { llvm_asm!("mrs PRIMASK, %0" : : "r" (status) : : "volatile") };
+        unsafe { llvm_asm!("msr PRIMASK, %0" : : "r" (status) : : "volatile") };
 
         let aclk_freq :u32 = self.aclk_sel.freq().clone();
         let hsmclk_freq :u32 = self.smclk_sel.freq().clone();
