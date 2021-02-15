@@ -95,6 +95,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             source_state = self.get_vcore();
 
             source_state = match source_state {
+                source if (source_state == source) => source,
                 VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
                 VCoreSel::LfVcore1 => VCoreSel::LdoVcore1,
                 VCoreSel::DcdcVcore0 => VCoreSel::LdoVcore0,
@@ -131,6 +132,12 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                  .amr().variant(self.vcore_sel.vcoresel())
                  .pcmkey().bits(!CSKEY)
             });
+
+            while self.periph.pcmctl1.read().pmr_busy().bits() {};
+
+             self.periph.pcmctl0.write(|w| unsafe {
+                w.pcmkey().bits(!CSKEY)
+             });
         }
 
         #[inline]
