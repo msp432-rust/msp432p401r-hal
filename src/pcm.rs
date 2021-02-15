@@ -125,7 +125,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.vcore_sel = source;
 
-            while self.periph.pcmctl1.read().pmr_busy().bits() {};
+            while self.periph.pcmctl1.read().pmr_busy().bits() as u8 != 0x00 {
+              unsafe{llvm_asm!("NOP")};
+            };
 
             self.periph.pcmctl0.write(|w| unsafe {
                 w.pcmkey().bits(CSKEY)
@@ -133,7 +135,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                  .pcmkey().bits(!CSKEY)
             });
 
-            while self.periph.pcmctl1.read().pmr_busy().bits() {};
+            while self.periph.pcmctl1.read().pmr_busy().bits() as u8 != 0x00 {
+              unsafe{llvm_asm!("NOP")};
+            };
 
              self.periph.pcmctl0.write(|w| unsafe {
                 w.pcmkey().bits(!CSKEY)
