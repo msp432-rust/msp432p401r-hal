@@ -175,8 +175,11 @@ impl <'a>PcmConfig<'a, PcmDefined> {
         }
 
         #[inline]
-        pub fn get_powermode(&self) -> VCoreCheck {
-            match self.periph.pcmctl0.read().cpm().bits() as u8 {
+        pub fn get_powermode() -> VCoreCheck {
+
+        let pcm = unsafe { &*PCM::ptr() };
+
+            match pcm.pcmctl0.read().cpm().bits() as u8 {
                 0 => VCoreCheck::LdoVcore0,
                 1 => VCoreCheck::LdoVcore1,
                 4 => VCoreCheck::DcdcVcore0,
