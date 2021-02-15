@@ -27,7 +27,7 @@ LPMx.5 --> Lowest power consumption
 
 */
 
-use pac::pcm::pcmctl0::{AMR_A}; //, CPM_A};
+use pac::pcm::pcmctl0::{AMR_A};
 use pac::PCM;
 
 /// Typestate for `PcmConfig` that represents unconfigured PCM
@@ -63,6 +63,23 @@ impl VCoreSel {
             VCoreSel::LfVcore1 => AMR_A::AMR_9,
         }
     }
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum VCoreCheck {
+    LdoVcore0,
+    LdoVcore1,
+    DcdcVcore0,
+    DcdcVcore1,
+    LfVcore0,
+    LfVcore1,
+    Lpm0LdoVcore0,
+    Lpm0LdoVcore1,
+    Lpm0DcdcVcore0,
+    Lpm0DcdcVcore1,
+    Lpm0LfVcore0,
+    Lpm0LfVcore1,
+    Lpm3,
 }
 
 /// Builder object that configures Power Control Manager (PCM)
@@ -125,7 +142,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.vcore_sel = source;
 
-            while self.periph.pcmctl1.read().pmr_busy().bits() as u8 != 0x00 {
+            while self.periph.pcmctl1.read().pmr_busy().bits() == true {
               unsafe{llvm_asm!("NOP")};
             };
 
@@ -135,7 +152,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                  .pcmkey().bits(!CSKEY)
             });
 
-            while self.periph.pcmctl1.read().pmr_busy().bits() as u8 != 0x00 {
+            while self.periph.pcmctl1.read().pmr_busy().bits() == true {
               unsafe{llvm_asm!("NOP")};
             };
 
@@ -154,6 +171,26 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                 8 => VCoreSel::LfVcore0,
                 9 => VCoreSel::LfVcore1,
                 _ => VCoreSel::LdoVcore0,
+            }
+        }
+
+        #[inline]
+        pub fn get_powermode(&self) -> VCoreCheck {
+            match self.periph.pcmctl0.read().cpm().bits() as u8 {
+                0 => VCoreCheck::LdoVcore0,
+                1 => VCoreCheck::LdoVcore1,
+                4 => VCoreCheck::DcdcVcore0,
+                5 => VCoreCheck::DcdcVcore1,
+                8 => VCoreCheck::LfVcore0,
+                9 => VCoreCheck::LfVcore1,
+                16 => VCoreCheck::Lpm0LdoVcore0,
+                17 => VCoreCheck::Lpm0LdoVcore1,
+                20 => VCoreCheck::Lpm0DcdcVcore0,
+                21 => VCoreCheck::Lpm0DcdcVcore1,
+                24 => VCoreCheck::Lpm0LfVcore0,
+                25 => VCoreCheck::Lpm0LfVcore1,
+                32 => VCoreCheck::Lpm3,
+                _ => VCoreCheck::LdoVcore0,
             }
         }
 }
