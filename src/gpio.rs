@@ -1,7 +1,6 @@
 use core::marker::PhantomData;
 
 pub use hal::digital::{InputPin, OutputPin, ToggleableOutputPin};
-use pac::dio::*;
 
 pub trait InputMode {}
 
@@ -60,14 +59,14 @@ macro_rules! gpio {
         ])+
     }) => {
             pub mod $portx {
-                use hal::digital::{OutputPin, InputPin, ToggleableOutputPin, PinState};
+                use hal::digital::{OutputPin, InputPin, ToggleableOutputPin};
                 use core::marker::PhantomData;
                 use super::*;
                 use pac::DIO;
-                use pac::Peripherals;
 
                 /// Port Group Implementation (PA, PB, PC...)
                 pub struct $PXx<MODE> {
+                #[allow(dead_code)]
                     i: u8,
                     _mode: PhantomData<MODE>,
                 }
@@ -75,6 +74,7 @@ macro_rules! gpio {
                 /// Port Implementation (P1, P2, P3..)
                 $(
                     pub struct $PIx<MODE> {
+                    #[allow(dead_code)]
                         i: u8,
                         _mode: PhantomData<MODE>,
                     }
