@@ -142,28 +142,29 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.vcore_sel = source;
 
-            loop {
-                match self.periph.pcmctl1.read().pmr_busy().bits() as u8 {
-                    0x00 => break,
-                    _ => unsafe{llvm_asm!("NOP")},
-                }
-            };
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
 
             self.periph.pcmctl0.write(|w| unsafe {
                 w.pcmkey().bits(CSKEY)
                  .amr().variant(self.vcore_sel.vcoresel())
+                 .pcmkey().bits(!CSKEY)
             });
 
-            loop {
-                match self.periph.pcmctl1.read().pmr_busy().bits() as u8 {
-                    0x00 => break,
-                    _ => unsafe{llvm_asm!("NOP")},
-                }
-            };
-
-             self.periph.pcmctl0.write(|w| unsafe {
-                w.pcmkey().bits(!CSKEY)
-             });
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
+            unsafe{llvm_asm!("NOP")};
         }
 
         #[inline]
