@@ -142,14 +142,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.vcore_sel = source;
 
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
+            while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
+                unsafe{llvm_asm!("NOP")};
+            }
 
             self.periph.pcmctl0.write(|w| unsafe {
                 w.pcmkey().bits(CSKEY)
@@ -157,14 +152,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                  .pcmkey().bits(!CSKEY)
             });
 
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
+            while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
+                unsafe{llvm_asm!("NOP")};
+            }
         }
 
         #[inline]
