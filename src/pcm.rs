@@ -114,7 +114,7 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
     const CSKEY: u32 = 0x695A0000;
 
         self.periph.pcmctl0.modify(|r, w| unsafe {
-            w.bits((r.bits() & 0x0000FFFF & mask as u32) | CSKEY | value as u32)
+            w.bits((r.bits() & mask as u32) | CSKEY | value as u32)
         });
 
         self.periph.pcmctl0.modify(|r, w| unsafe {
@@ -159,7 +159,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             let mut status: u32;
 
-            let amr_mask: u16 = 0xFFF8;
+            let amr_mask: u16 = 0xFFF0;
 
             /* save the PRIMASK into 'status' */
             unsafe { llvm_asm!("mrs $0, PRIMASK" : "=r" (status) : : : "volatile") };
@@ -180,7 +180,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
         #[inline]
         fn get_vcore(&self) -> VCoreSel {
-            match self.periph.pcmctl0.read().bits() & 0x0F {
+            match self.periph.pcmctl0.read().bits() as u8 & 0x0F {
                 0 => VCoreSel::LdoVcore0,
                 1 => VCoreSel::LdoVcore1,
                 4 => VCoreSel::DcdcVcore0,
