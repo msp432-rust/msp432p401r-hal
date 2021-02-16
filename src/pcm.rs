@@ -151,19 +151,19 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                     source_state = source;
                 }
 
-                self.set_vcore_inline(source_state);
+                self.vcore_sel = source_state;
+
+                self.set_vcore_inline();
                 source_state = self.get_vcore();
             }
         }
 
         #[inline]
-        fn set_vcore_inline(&mut self, source: VCoreSel) {
+        fn set_vcore_inline(&mut self) {
 
             let mut status: u32;
 
             let amr_mask: u16 = 0xFFF8;
-
-            self.vcore_sel = source;
 
             /* save the PRIMASK into 'status' */
             unsafe { llvm_asm!("mrs $0, PRIMASK" : "=r" (status) : : : "volatile") };
@@ -179,6 +179,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             /* restore PRIMASK from 'status' */
             unsafe { llvm_asm!("msr PRIMASK, $0" : : "r" (status) : : "volatile") };
+
         }
 
         #[inline]
