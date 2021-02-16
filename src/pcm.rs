@@ -134,6 +134,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             source_state = self.get_vcore();
 
             while source_state != source {
+
                 source_state = match source_state {
                     source if (source_state == source) => source,
                     VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
@@ -150,9 +151,8 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                     VCoreSel::LdoVcore0 => source,
                 };
 
-               if source_state != source {
-                    self.set_vcore_inline(source_state);
-               }
+                self.set_vcore_inline(source_state);
+                source_state = self.get_vcore();
             }
         }
 
@@ -183,7 +183,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
         #[inline]
         fn get_vcore(&self) -> VCoreSel {
-            match self.periph.pcmctl0.read().amr().bits() as u8 {
+            match self.periph.pcmctl0.read().bits() & 0x0F {
                 0 => VCoreSel::LdoVcore0,
                 1 => VCoreSel::LdoVcore1,
                 4 => VCoreSel::DcdcVcore0,
