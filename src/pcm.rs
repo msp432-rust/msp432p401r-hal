@@ -27,7 +27,6 @@ LPMx.5 --> Lowest power consumption
 
 */
 
-use pac::pcm::pcmctl0::{AMR_A};
 use pac::PCM;
 
 /// Typestate for `PcmConfig` that represents unconfigured PCM
@@ -53,14 +52,14 @@ pub enum VCoreSel {
 
 impl VCoreSel {
     #[inline(always)]
-    fn vcoresel(&self) -> AMR_A {
+    fn vcoresel(&self) -> u16 {
         match *self {
-            VCoreSel::LdoVcore0 => AMR_A::AMR_0,
-            VCoreSel::LdoVcore1 => AMR_A::AMR_1,
-            VCoreSel::DcdcVcore0 => AMR_A::AMR_4,
-            VCoreSel::DcdcVcore1 => AMR_A::AMR_5,
-            VCoreSel::LfVcore0 => AMR_A::AMR_8,
-            VCoreSel::LfVcore1 => AMR_A::AMR_9,
+            VCoreSel::LdoVcore0 => 0x00,
+            VCoreSel::LdoVcore1 => 0x01,
+            VCoreSel::DcdcVcore0 => 0x04,
+            VCoreSel::DcdcVcore1 => 0x05,
+            VCoreSel::LfVcore0 => 0x08,
+            VCoreSel::LfVcore1 => 0x09,
         }
     }
 }
@@ -117,7 +116,7 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
     const CSKEY: u32 = 0x695A0000;
 
         self.periph.pcmctl0.modify(|r, w| unsafe {
-            w.bits(r.bits() & mask as u32 | CSKEY | value as u32)
+            w.bits((r.bits() & 0x0000FFFF & mask as u32) | CSKEY | value as u32)
         });
 
         self.periph.pcmctl0.modify(|r, w| unsafe {
@@ -134,26 +133,26 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             let mut source_state: VCoreSel;
             source_state = self.get_vcore();
 
-            source_state = match source_state {
-                source if (source_state == source) => source,
-                VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
-                VCoreSel::LfVcore1 => VCoreSel::LdoVcore1,
-                VCoreSel::DcdcVcore0 => VCoreSel::LdoVcore0,
-                VCoreSel::LfVcore0 => VCoreSel::LdoVcore0,
-                VCoreSel::LdoVcore1 if source == VCoreSel::LdoVcore0 ||
-                source == VCoreSel::DcdcVcore0 || source == VCoreSel::LfVcore0
-                => VCoreSel::LdoVcore0,
-                VCoreSel::LdoVcore1 => source,
-                VCoreSel::LdoVcore0 if source == VCoreSel::LdoVcore1 ||
-                source == VCoreSel::DcdcVcore1 || source == VCoreSel::LfVcore1
-                => VCoreSel::LdoVcore1,
-                VCoreSel::LdoVcore0 => source,
-            };
+            while source_state != source {
+                source_state = match source_state {
+                    source if (source_state == source) => source,
+                    VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
+                    VCoreSel::LfVcore1 => VCoreSel::LdoVcore1,
+                    VCoreSel::DcdcVcore0 => VCoreSel::LdoVcore0,
+                    VCoreSel::LfVcore0 => VCoreSel::LdoVcore0,
+                    VCoreSel::LdoVcore1 if source == VCoreSel::LdoVcore0 ||
+                    source == VCoreSel::DcdcVcore0 || source == VCoreSel::LfVcore0
+                    => VCoreSel::LdoVcore0,
+                    VCoreSel::LdoVcore1 => source,
+                    VCoreSel::LdoVcore0 if source == VCoreSel::LdoVcore1 ||
+                    source == VCoreSel::DcdcVcore1 || source == VCoreSel::LfVcore1
+                    => VCoreSel::LdoVcore1,
+                    VCoreSel::LdoVcore0 => source,
+                };
 
-            self.set_vcore_inline(source_state);
-
-            if source_state != source {
-                self.set_vcore(source);
+               if source_state != source {
+                    self.set_vcore_inline(source_state);
+               }
             }
         }
 
@@ -174,7 +173,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.wait_pcm();
 
-            self.set_reg_mask(self.vcore_sel.vcoresel() as u16, amr_mask);
+            self.set_reg_mask(self.vcore_sel.vcoresel(), amr_mask);
 
             self.wait_pcm();
 
