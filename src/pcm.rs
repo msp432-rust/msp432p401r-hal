@@ -85,7 +85,6 @@ pub enum VCoreCheck {
 pub struct PcmConfig <'a, S: State>{
     periph: &'a pac::pcm::RegisterBlock,
     _state: S,
-    vcore_sel: VCoreSel,
 }
 
 impl <'a, S>PcmConfig<'a, S> where S: State{
@@ -97,7 +96,6 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
         PcmConfig {
             periph: pcm,
             _state: PcmDefined,
-            vcore_sel: VCoreSel::LdoVcore0,
         }
     }
 
@@ -151,15 +149,13 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                     source_state = source;
                 }
 
-                self.vcore_sel = source_state;
-
-                self.set_vcore_inline();
+                self.set_vcore_inline(source_state);
                 source_state = self.get_vcore();
             }
         }
 
         #[inline]
-        fn set_vcore_inline(&mut self) {
+        fn set_vcore_inline(&mut self, source: VCoreSel) {
 
             let mut status: u32;
 
@@ -173,7 +169,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.wait_pcm();
 
-            self.set_reg_mask(self.vcore_sel.vcoresel(), amr_mask);
+            self.set_reg_mask(source.vcoresel(), amr_mask);
 
             self.wait_pcm();
 
