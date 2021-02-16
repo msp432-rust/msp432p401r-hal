@@ -104,6 +104,10 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
         while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
             unsafe{llvm_asm!("NOP")};
         }
+
+        for _n in 1..150 {
+            unsafe{llvm_asm!("NOP")};
+        }
     }
 
     #[inline]
@@ -131,6 +135,14 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             let mut source_state: VCoreSel;
             source_state = self.get_vcore();
 
+            if source_state == source {
+
+            for _n in 1..150 {
+                unsafe{llvm_asm!("NOP")};
+            }
+                return;
+            }
+
             while source_state != source {
 
                 if source_state == VCoreSel::DcdcVcore1 ||
@@ -140,10 +152,10 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                    source_state == VCoreSel::LfVcore0 {
                    source_state = VCoreSel::LdoVcore0;
                 } else if source_state == VCoreSel::LdoVcore1 &&
-                   (source != VCoreSel::DcdcVcore1 || source != VCoreSel::LfVcore1) {
+                   source != VCoreSel::DcdcVcore1 && source != VCoreSel::LfVcore1 {
                    source_state = VCoreSel::LdoVcore0;
                 } else if source_state == VCoreSel::LdoVcore0 &&
-                    (source != VCoreSel::DcdcVcore0 || source != VCoreSel::LfVcore0) {
+                    source != VCoreSel::DcdcVcore0 && source != VCoreSel::LfVcore0 {
                      source_state = VCoreSel::LdoVcore1;
                 } else {
                     source_state = source;

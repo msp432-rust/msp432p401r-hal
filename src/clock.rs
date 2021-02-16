@@ -469,15 +469,10 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
         // Run DCO configuration
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
             self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
+
+               for _n in 1..250 {
+                   unsafe{llvm_asm!("NOP")};
+               }
             };
         }
 
@@ -486,15 +481,10 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
         // Run HFXT configuration
         if let MclkSel::Hfxtclk(target_freq) = self.mclk.0 {
             self.periph.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) });
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
-            unsafe{llvm_asm!("NOP")};
+
+            for _n in 1..250 {
+                unsafe{llvm_asm!("NOP")};
+            }
         };
     }
 
