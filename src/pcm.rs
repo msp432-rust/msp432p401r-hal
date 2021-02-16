@@ -108,6 +108,22 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
             unsafe{llvm_asm!("NOP")};
         }
     }
+
+    #[inline]
+
+    fn set_reg_mask(&self, value: u16, mask: u16) {
+
+    /// CSKEY
+    const CSKEY: u32 = 0x695A0000;
+
+        self.periph.pcmctl0.modify(|r, w| unsafe {
+            w.bits(r.bits() & mask as u32 | CSKEY | value as u32)
+        });
+
+        self.periph.pcmctl0.modify(|r, w| unsafe {
+            w.bits(r.bits() & !CSKEY)
+        });
+    }
 }
 
 impl <'a>PcmConfig<'a, PcmDefined> {
@@ -144,10 +160,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
         #[inline]
         fn set_vcore_inline(&mut self, source: VCoreSel) {
 
-            /// CSKEY
-            const CSKEY: u16 = 0x695A;
-
             let mut status: u32;
+
+            let amr_mask: u16 = 0xFFF8;
 
             self.vcore_sel = source;
 
@@ -159,11 +174,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             self.wait_pcm();
 
-            self.periph.pcmctl0.write(|w| unsafe {
-                w.pcmkey().bits(CSKEY)
-                 .amr().variant(self.vcore_sel.vcoresel())
-                 .pcmkey().bits(!CSKEY)
-            });
+            self.set_reg_mask(self.vcore_sel.vcoresel() as u16, amr_mask);
 
             self.wait_pcm();
 
@@ -185,12 +196,9 @@ impl <'a>PcmConfig<'a, PcmDefined> {
         }
 
         #[inline]
-        pub fn get_powermode() -> VCoreCheck {
+        pub fn get_powermode(&self) -> VCoreCheck {
 
-                VCoreCheck::LdoVcore0
-       /* let pcm = unsafe { &*PCM::ptr() };
-
-            match pcm.pcmctl0.read().cpm().bits() as u8 {
+            match self.periph.pcmctl0.read().cpm().bits() as u8 {
                 0 => VCoreCheck::LdoVcore0,
                 1 => VCoreCheck::LdoVcore1,
                 4 => VCoreCheck::DcdcVcore0,
@@ -205,7 +213,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                 25 => VCoreCheck::Lpm0LfVcore1,
                 32 => VCoreCheck::Lpm3,
                 _ => VCoreCheck::LdoVcore0,
-            }*/
+            }
         }
 }
 
