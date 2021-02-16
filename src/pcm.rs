@@ -101,6 +101,13 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
             vcore_sel: VCoreSel::LdoVcore0,
         }
     }
+
+    #[inline]
+    fn wait_pcm(&self) {
+        while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
+            unsafe{llvm_asm!("NOP")};
+        }
+    }
 }
 
 impl <'a>PcmConfig<'a, PcmDefined> {
@@ -140,11 +147,17 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             /// CSKEY
             const CSKEY: u16 = 0x695A;
 
+            let mut status: u32;
+
             self.vcore_sel = source;
 
-            while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
-                unsafe{llvm_asm!("NOP")};
-            }
+            /* save the PRIMASK into 'status' */
+            unsafe { llvm_asm!("mrs $0, PRIMASK" : "=r" (status) : : : "volatile") };
+
+            /* set PRIMASK to disable interrupts */
+            unsafe { llvm_asm!("cpsid i" : : : : "volatile") };
+
+            self.wait_pcm();
 
             self.periph.pcmctl0.write(|w| unsafe {
                 w.pcmkey().bits(CSKEY)
@@ -152,9 +165,10 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                  .pcmkey().bits(!CSKEY)
             });
 
-            while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
-                unsafe{llvm_asm!("NOP")};
-            }
+            self.wait_pcm();
+
+            /* restore PRIMASK from 'status' */
+            unsafe { llvm_asm!("msr PRIMASK, $0" : : "r" (status) : : "volatile") };
         }
 
         #[inline]
@@ -173,7 +187,8 @@ impl <'a>PcmConfig<'a, PcmDefined> {
         #[inline]
         pub fn get_powermode() -> VCoreCheck {
 
-        let pcm = unsafe { &*PCM::ptr() };
+                VCoreCheck::LdoVcore0
+       /* let pcm = unsafe { &*PCM::ptr() };
 
             match pcm.pcmctl0.read().cpm().bits() as u8 {
                 0 => VCoreCheck::LdoVcore0,
@@ -190,7 +205,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
                 25 => VCoreCheck::Lpm0LfVcore1,
                 32 => VCoreCheck::Lpm3,
                 _ => VCoreCheck::LdoVcore0,
-            }
+            }*/
         }
 }
 
