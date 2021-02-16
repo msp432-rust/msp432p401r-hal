@@ -136,7 +136,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
             while source_state != source {
 
                 source_state = match source_state {
-                    source if (source_state == source) => source,
+                    source if (source_state == source) => break,
                     VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
                     VCoreSel::LfVcore1 => VCoreSel::LdoVcore1,
                     VCoreSel::DcdcVcore0 => VCoreSel::LdoVcore0,
