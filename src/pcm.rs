@@ -135,21 +135,21 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             while source_state != source {
 
-                source_state = match source_state {
-                    source if (source_state == source) => break,
-                    VCoreSel::DcdcVcore1 => VCoreSel::LdoVcore1,
-                    VCoreSel::LfVcore1 => VCoreSel::LdoVcore1,
-                    VCoreSel::DcdcVcore0 => VCoreSel::LdoVcore0,
-                    VCoreSel::LfVcore0 => VCoreSel::LdoVcore0,
-                    VCoreSel::LdoVcore1 if source == VCoreSel::LdoVcore0 ||
-                    source == VCoreSel::DcdcVcore0 || source == VCoreSel::LfVcore0
-                    => VCoreSel::LdoVcore0,
-                    VCoreSel::LdoVcore1 => source,
-                    VCoreSel::LdoVcore0 if source == VCoreSel::LdoVcore1 ||
-                    source == VCoreSel::DcdcVcore1 || source == VCoreSel::LfVcore1
-                    => VCoreSel::LdoVcore1,
-                    VCoreSel::LdoVcore0 => source,
-                };
+                if source_state == VCoreSel::DcdcVcore1 ||
+                   source_state == VCoreSel::LfVcore1 {
+                    source_state = VCoreSel::LdoVcore1;
+                } else if source_state == VCoreSel::DcdcVcore0 ||
+                   source_state == VCoreSel::LfVcore0 {
+                   source_state = VCoreSel::LdoVcore0;
+                } else if source_state == VCoreSel::LdoVcore1 &&
+                   (source != VCoreSel::DcdcVcore1 || source != VCoreSel::LfVcore1) {
+                   source_state = VCoreSel::LdoVcore0;
+                } else if source_state == VCoreSel::LdoVcore0 &&
+                    (source != VCoreSel::DcdcVcore0 || source != VCoreSel::LfVcore0) {
+                     source_state = VCoreSel::LdoVcore1;
+                } else {
+                    source_state = source;
+                }
 
                 self.set_vcore_inline(source_state);
                 source_state = self.get_vcore();
