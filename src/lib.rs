@@ -9,3 +9,4 @@ pub mod gpio;
 pub mod time;
 pub mod clock;
 pub mod pcm;
+pub mod flctl;

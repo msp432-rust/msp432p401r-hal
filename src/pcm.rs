@@ -105,7 +105,7 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
             unsafe{llvm_asm!("NOP")};
         }
 
-        for _n in 1..150 {
+        for _n in 1..50 {
             unsafe{llvm_asm!("NOP")};
         }
     }
@@ -137,7 +137,7 @@ impl <'a>PcmConfig<'a, PcmDefined> {
 
             if source_state == source {
 
-            for _n in 1..150 {
+            for _n in 1..50 {
                 unsafe{llvm_asm!("NOP")};
             }
                 return;

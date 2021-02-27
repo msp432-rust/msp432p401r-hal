@@ -470,7 +470,7 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
             self.periph.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
 
-               for _n in 1..250 {
+               for _n in 1..50 {
                    unsafe{llvm_asm!("NOP")};
                }
             };
@@ -482,7 +482,7 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
         if let MclkSel::Hfxtclk(target_freq) = self.mclk.0 {
             self.periph.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) });
 
-            for _n in 1..250 {
+            for _n in 1..50 {
                 unsafe{llvm_asm!("NOP")};
             }
         };
@@ -502,21 +502,43 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn configure_cs(&self) {
+
+        const CS_STAT: u8 = 0b00011111;
+        const CS_MASK_ACLK: u32 = 0xF8FFF8FF;
+        const CS_MASK_MCLK: u32 = 0xFFF8FFF8;
+        const CS_MASK_SMCLK: u32 = 0x8FFFFF8F;
+
         // Configure clock selector and divisors
-        self.periph.csctl1.write(|w| {
-             w.sela()                           // ACLK SEL
-                .variant(self.aclk_sel.sela())
-                .selm()                         // MCLK SEL
-                .variant(self.mclk.0.selm())
-                .divm()                         // MCLK DIV
-                .variant(self.mclk_div)
-                .sels()                         // SMCLK SEL
-                .variant(self.smclk_sel.sels());
-            match self.smclk.div() {            // SMCLK DIV
+        self.wait_clk(CS_STAT);
+
+        // ACLK SEL
+        self.periph.csctl1.modify(|r, w| unsafe {
+            w.bits(r.bits() & CS_MASK_ACLK)
+             .sela().variant(self.aclk_sel.sela())
+        });
+
+        self.wait_clk(CS_STAT);
+
+        // MCLK SEL | MCLK DIV
+        self.periph.csctl1.modify(|r, w| unsafe {
+            w.bits(r.bits() & CS_MASK_MCLK)
+             .selm().variant(self.mclk.0.selm())
+             .divm().variant(self.mclk_div)
+        });
+
+        self.wait_clk(CS_STAT);
+
+        // SMCLK SEL | SMCLK DIV
+        self.periph.csctl1.modify(|r, w| unsafe {
+            w.bits(r.bits() & CS_MASK_SMCLK)
+             .sels().variant(self.smclk_sel.sels());
+            match self.smclk.div() {
                 Some(div) => w.divs().variant(div),
                 None => w.divs().variant(DIVS_A::DIVS_0),
             }
         });
+
+        self.wait_clk(CS_STAT);
     }
 
     #[inline]
@@ -534,9 +556,14 @@ impl<'a, SMCLK: SmclkState> ClockConfig<'a, MclkDefined, SMCLK> {
 
     #[inline]
     fn wait_clk(&self, flag: u8) {
-        while ((self.periph.csstat.read().bits() >> 24) as u8 & flag) != flag {
+
+       for _n in 1..50 {
             unsafe{llvm_asm!("NOP")};
-        };
+       }
+
+       while ((self.periph.csstat.read().bits() >> 24) as u8 & flag) != flag {
+            unsafe{llvm_asm!("NOP")};
+       };
     }
 }
 
@@ -545,9 +572,6 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
     /// Apply clock configuration to hardware and return clock objects
     #[inline]
     pub fn freeze(self) -> Clocks {
-
-        /// CSKEY
-        const CS_STAT: u8 = 0b00011111;
 
         let mut status: u32;
 
@@ -561,28 +585,10 @@ impl <'a>ClockConfig<'a, MclkDefined, SmclkDefined> {
 
         self.cs_key(true);
 
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
-
         self.configure_dco_fll();
-
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
-
         self.configure_hfxt();
-
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
-
         self.configure_refo();
-
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
-
         self.configure_cs();
-
-        /* Waiting for the clock source ready bit to be valid before changing */
-        self.wait_clk(CS_STAT);
 
         self.cs_key(false);
 
