@@ -6,8 +6,8 @@ use cortex_m_rt::entry;
 use panic_halt as _;
 // use cortex_m_semihosting::hprintln;                                      // Enable debug print
 
-extern crate msp432p401r_hal as hal;
-extern crate msp432p401r as pac;
+use msp432p401r_hal as hal;
+use msp432p401r as pac;
 
 use hal::watchdog::{WatchdogTimer, Enabled, Disable};
 use hal::gpio::{Output, ToggleableOutputPin, GPIO};
@@ -34,7 +34,11 @@ fn main() -> ! {
 
    // hprintln!("Hello World Example").unwrap();
 
-   let mut p1_0: P1_0<GPIO<Output>> = P1_0::<GPIO<Output>>::into_output();
+   let p = pac::Peripherals::take().unwrap();
+
+   let dio = p.DIO;
+   let gpio = dio.split();
+   let mut p1_0 = gpio.p1_0.into_output();
 
    let _clock :Clocks = ClockConfig::new()
         .mclk_dcoclk( DcoclkFreqSel::_48MHz, DIVM_A::DIVM_0)
