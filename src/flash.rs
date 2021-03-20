@@ -3,6 +3,7 @@ use pac::FLCTL;
 
 /// Typestate for `FlctlConfig` that represents unconfigured FLCTL
 pub struct FlcNotDefined;
+
 /// Typestate for `FlctlConfig` that represents a configured FLCTL
 pub struct FlcDefined;
 
@@ -33,7 +34,6 @@ pub enum FlWaitSts {
 }
 
 impl FlWaitSts {
-
     /// Numerical frequency
     #[inline(always)]
     pub fn val(&self) -> u8 {
@@ -59,26 +59,23 @@ impl FlWaitSts {
 }
 
 /// Builder object that configures the Flash Control (FLCTL)
-pub struct FlctlConfig <'a, S: State>{
+pub struct FlashConfig<'a, S: State> {
     periph: &'a pac::flctl::RegisterBlock,
     _state: S,
 }
 
-impl <'a, S>FlctlConfig<'a, S> where S: State{
+impl<'a, S> FlashConfig<'a, S> where S: State {
     /// Converts FLCTL into a fresh, unconfigured FLCTL builder object
-    pub fn new() -> FlctlConfig<'a, FlcDefined> {
-
+    pub fn new() -> FlashConfig<'a, FlcDefined> {
         let flctl = unsafe { &*FLCTL::ptr() };
 
-        FlctlConfig {
+        FlashConfig {
             periph: flctl,
             _state: FlcDefined,
         }
     }
 
-    #[inline]
     fn set_rdctl_mask(&self, value: u32, mask: u32) {
-
         self.periph.flctl_bank0_rdctl.modify(|r, w| unsafe {
             w.bits((r.bits() & mask as u32) | value as u32)
         });
@@ -86,14 +83,11 @@ impl <'a, S>FlctlConfig<'a, S> where S: State{
         self.periph.flctl_bank1_rdctl.modify(|r, w| unsafe {
             w.bits((r.bits() & mask as u32) | value as u32)
         });
-
     }
 }
 
-impl <'a>FlctlConfig<'a, FlcDefined> {
-
-        #[inline]
-        pub fn set_flwaitst(&self, wait: FlWaitSts) {
-            self.set_rdctl_mask((wait.val() as u32) << 12, 0xFFFF0FFF);
-        }
+impl<'a> FlashConfig<'a, FlcDefined> {
+    pub fn set_flwaitst(&self, wait: FlWaitSts) {
+        self.set_rdctl_mask((wait.val() as u32) << 12, 0xFFFF0FFF);
+    }
 }

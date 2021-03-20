@@ -352,7 +352,7 @@ macro_rules! make_clkconf {
 
 impl ClockConfig<NoClockDefined, NoClockDefined> {
     /// Converts CS into a fresh, unconfigured clock builder object
-    fn new(cs: CS) -> Self {
+    pub fn new(cs: CS) -> Self {
         ClockConfig {
             cs,
             smclk: NoClockDefined,

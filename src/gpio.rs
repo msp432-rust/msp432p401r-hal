@@ -302,7 +302,7 @@ macro_rules! gpio {
         impl GpioExt for $DIO {
             type Parts = Parts;
 
-            fn split(self) -> Parts {
+            pub fn split(self) -> Parts {
                 Parts {
                     $($($(
                         $pxi: $portx::$PI_i { _mode: <$MODE>::_new() },
