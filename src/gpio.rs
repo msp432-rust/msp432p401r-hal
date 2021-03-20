@@ -266,6 +266,17 @@ macro_rules! gpio {
                             }
                         }
 
+                        impl StatefulOutputPin for $PI_i<Output> {
+                            fn try_is_set_high(&self) -> Result<bool, Self::Error> {
+                                self.try_is_set_low().map(|b| !b)
+                            }
+
+                            fn try_is_set_low(&self) -> Result<bool, Self::Error> {
+                                let dio = unsafe { &*$DIO::ptr() };
+                                Ok(dio.$pxout.read().$piout().bits() & (1 << $i) == 0)
+                            }
+                        }
+
                         impl ToggleableOutputPin for $PI_i<Output> {
                             type Error = Infallible;
 
