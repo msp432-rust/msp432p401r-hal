@@ -14,7 +14,7 @@ use hal::gpio::{Output, ToggleableOutputPin, GPIO};
 use hal::gpio::porta::P1_0;
 use hal::clock::{ClockConfig, DIVM_A, DIVS_A, Clocks, DcoclkFreqSel};
 use hal::pcm::{PcmConfig, PcmDefined, VCoreSel};
-// use hal::flctl::{FlctlConfig, FlcDefined, FlWaitSts};
+use hal::flctl::{FlctlConfig, FlcDefined, FlWaitSts};
 
 #[entry]
 fn main() -> ! {
@@ -29,8 +29,8 @@ fn main() -> ! {
    let _pcm_sel = pcm.get_powermode();                                      // Get the current powermode
 
    // Flash Control Config.
-   // let flctl = FlctlConfig::<FlcDefined>::new();                            // Setup FlctlConfig
-   // flctl.set_flwaitst(FlWaitSts::_2Ws);                                     // Two wait states -> 48 Mhz Clock
+   let flctl = FlctlConfig::<FlcDefined>::new();                            // Setup FlctlConfig
+   flctl.set_flwaitst(FlWaitSts::_2Ws);                                     // Two wait states -> 48 Mhz Clock
 
    // hprintln!("Hello World Example").unwrap();
 
