@@ -40,7 +40,7 @@ impl State for PcmNotDefined {}
 
 impl State for PcmDefined {}
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum VCoreSel {
     LdoVcore0,
     LdoVcore1,
@@ -64,7 +64,7 @@ impl VCoreSel {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum VCoreCheck {
     LdoVcore0,
     LdoVcore1,
