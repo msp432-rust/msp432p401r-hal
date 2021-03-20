@@ -1,17 +1,18 @@
 //! HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
 
-//! Usage example:
-//! ```
-//! #  use msp432p401r_hal::watchdog::{WatchdogTimer, Enabled, Disable, Enable};
-//!
-//! #  let watchdog = WatchdogTimer::<Enabled>::new();            // Setup WatchdogTimer
-//! #  watchdog.try_disable().unwrap();                           // Disable the watchdog
-//! ```
-
 use core::convert::Infallible;
 
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
+
+const WDT_COUNTER_CLEAR: u8 = 0x08;
+const WDT_COUNTER_MASK: u8 = 0xF7;
+const WDT_MODE_SELECT: u8 = 0x10;
+const WDT_MODE_MASK: u8 = 0xEF;
+const WDT_CONTROL_HOLD: u8 = 0x80;
+const WDT_CONTROL_MASK: u8 = 0x7F;
+const WDT_SOURCE_MASK: u8 = 0x9F;
+const WDT_INTERVAL_MASK: u8 = 0xF8;
 
 enum Mode {
     Timer,
@@ -51,85 +52,75 @@ impl State for Enabled {}
 
 impl State for Disabled {}
 
-struct WDT;
+pub trait WDTExt {
+    fn constrain(self) -> WatchdogTimer<Enabled>;
+}
 
-impl WDT {
-    const WDT_COUNTER_CLEAR: u16 = 0x0008;
-    const WDT_MODE_SELECT: u16 = 0x0010;
-    const WDT_CONTROL_HOLD: u16 = 0x0080;
-    const WDT_PASSWORD: u16 = 0x5A00;
-    const WDT_PASSWORD_MASK: u16 = 0x00FF;
-
-    fn with_password(bits: u16) -> u16 {
-        WDT::WDT_PASSWORD + (bits & WDT::WDT_PASSWORD_MASK)
-    }
-
-    pub fn set(&self, bits: u16) {
-        let wdt_a = unsafe { &*WDT_A::ptr() };
-        wdt_a.wdtctl.modify(|r, w| unsafe {
-            w.bits(WDT::with_password(r.bits() | bits))
-        });
-    }
-
-    pub fn clear(&self, bits: u16) {
-        let wdt_a = unsafe { &*WDT_A::ptr() };
-        wdt_a.wdtctl.modify(|r, w| unsafe {
-            w.bits(WDT::with_password(r.bits() & bits))
-        });
+impl WDTExt for WDT_A {
+    fn constrain(self) -> WatchdogTimer<Enabled> {
+        WatchdogTimer::<Enabled>::new(self)
     }
 }
 
 pub struct WatchdogTimer<S: State> {
-    wdt: WDT,
+    wdt: WDT_A,
     state: S,
 }
 
 impl<S> WatchdogTimer<S> where S: State {
-    pub fn new() -> WatchdogTimer<Enabled> {
-        WatchdogTimer {
-            wdt: WDT {},
-            state: Enabled,
-        }
-    }
 
     pub fn current_state(&self) -> &S {
         &self.state
     }
 
     fn stop_watchdog_timer(&self) {
-        self.wdt.set(WDT::WDT_CONTROL_HOLD);
+        self.set_reg_mask(WDT_CONTROL_HOLD, WDT_CONTROL_MASK);
     }
 
     fn start_watchdog_timer(&self) {
-        self.wdt.clear(!WDT::WDT_CONTROL_HOLD);
+        self.set_reg_mask(!WDT_CONTROL_HOLD, WDT_CONTROL_MASK);
     }
 
-    fn set_timer_interval(&self, interval: TimerInterval) {
-        self.wdt.set(interval as u16);
+    pub fn set_timer_interval(&self, interval: TimerInterval) {
+        self.set_reg_mask(interval as u8,WDT_INTERVAL_MASK);
     }
 
-    fn set_clock_source(&self, source: ClockSource) {
-        self.wdt.set(source as u16);
+    pub fn set_clock_source(&self, source: ClockSource) {
+        self.set_reg_mask(source as u8, WDT_SOURCE_MASK);
     }
 
     fn setup(&self, options: Options) {
-        self.wdt.set(WDT::WDT_COUNTER_CLEAR);
+        self.set_reg_mask(WDT_COUNTER_CLEAR, WDT_COUNTER_MASK);
         self.set_clock_source(options.0);
         self.set_timer_interval(options.1);
     }
 
     fn change_mode(&self, mode: Mode) {
         match mode {
-            Mode::Timer => self.wdt.set(WDT::WDT_COUNTER_CLEAR | WDT::WDT_MODE_SELECT),
-            Mode::Watchdog => {
-                self.wdt.set(WDT::WDT_COUNTER_CLEAR);
-                self.wdt.clear(!WDT::WDT_MODE_SELECT);
-            }
+            Mode::Timer => self.set_reg_mask(WDT_COUNTER_CLEAR | WDT_MODE_SELECT, WDT_COUNTER_MASK | WDT_MODE_MASK),
+            Mode::Watchdog => self.set_reg_mask(WDT_COUNTER_CLEAR | !WDT_MODE_SELECT, WDT_COUNTER_MASK | WDT_MODE_MASK),
         }
+    }
+
+    fn set_reg_mask(&self, value: u8, mask: u8) {
+
+        const WDT_PASSWORD: u16 = 0x5A00;
+
+        self.wdt.wdtctl.modify(|r, w| unsafe {
+            w.bits((r.bits() & mask as u16) | WDT_PASSWORD | value as u16)
+        });
     }
 }
 
 impl WatchdogTimer<Enabled> {
+
+    pub fn new(wdt: WDT_A) -> WatchdogTimer<Enabled> {
+        WatchdogTimer {
+            wdt,
+            state: Enabled,
+        }
+    }
+
     /// Set WDT to Watchdog mode
     pub fn select_watchdog_mode(&self) {
         self.change_mode(Mode::Watchdog)
@@ -158,7 +149,7 @@ impl Watchdog for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
     fn try_feed(&mut self) -> Result<(), Self::Error> {
-        self.wdt.set(WDT::WDT_COUNTER_CLEAR);
+        self.set_reg_mask(WDT_COUNTER_CLEAR, WDT_COUNTER_MASK);
         Ok(())
     }
 }

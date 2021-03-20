@@ -28,17 +28,25 @@ LPMx.5 --> Lowest power consumption
 */
 
 use pac::PCM;
+use cortex_m::interrupt;
 
-/// Typestate for `PcmConfig` that represents unconfigured PCM
 pub struct PcmNotDefined;
-/// Typestate for `PcmConfig` that represents a configured PCM
 pub struct PcmDefined;
 
 pub trait State {}
 
 impl State for PcmNotDefined {}
-
 impl State for PcmDefined {}
+
+pub trait PcmExt {
+    fn constrain(self) -> PcmConfig<PcmNotDefined>;
+}
+
+impl PcmExt for PCM {
+    fn constrain(self) -> PcmConfig<PcmNotDefined> {
+        PcmConfig::new(self)
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum VCoreSel {
@@ -51,7 +59,6 @@ pub enum VCoreSel {
 }
 
 impl VCoreSel {
-    #[inline(always)]
     fn vcoresel(&self) -> u16 {
         match *self {
             VCoreSel::LdoVcore0 => 0x00,
@@ -81,27 +88,86 @@ pub enum VCoreCheck {
     Lpm3,
 }
 
-/// Builder object that configures Power Control Manager (PCM)
-pub struct PcmConfig <'a, S: State>{
-    periph: &'a pac::pcm::RegisterBlock,
+pub struct PcmConfig <S: State>{
+    pcm: PCM,
+    source: VCoreSel,
     _state: S,
 }
 
-impl <'a, S>PcmConfig<'a, S> where S: State{
-    /// Converts PCM into a fresh, unconfigured PCM builder object
-    pub fn new() -> PcmConfig<'a, PcmDefined> {
-
-        let pcm = unsafe { &*PCM::ptr() };
-
+macro_rules! make_pcmconf {
+    ($conf:expr, $_state:expr) => {
         PcmConfig {
-            periph: pcm,
-            _state: PcmDefined,
+            pcm: $conf.pcm,
+            source: $conf.source,
+            _state: $_state,
+        }
+    };
+}
+
+impl PcmConfig<PcmNotDefined> {
+
+    fn new(pcm: PCM) -> Self {
+        PcmConfig {
+            pcm,
+            source: VCoreSel::LdoVcore0,
+            _state: PcmNotDefined,
         }
     }
+}
+
+impl <S>PcmConfig<S> where S: State{
 
     #[inline]
+    pub fn set_vcore(mut self, source: VCoreSel) -> PcmConfig<PcmDefined> {
+        self.source = source;
+        make_pcmconf!(self, PcmDefined)
+    }
+
+}
+
+impl PcmConfig<PcmDefined> {
+
+    pub fn freeze(mut self) -> Self {
+
+        let mut source_state: VCoreSel;
+        source_state = self.get_vcore();
+
+        if source_state == self.source {
+            for _n in 1..50 {
+                unsafe{llvm_asm!("NOP")};
+            }
+            return self;
+        }
+
+        while source_state != self.source {
+
+            if source_state == VCoreSel::DcdcVcore1 ||
+                source_state == VCoreSel::LfVcore1 {
+                source_state = VCoreSel::LdoVcore1;
+            } else if source_state == VCoreSel::DcdcVcore0 ||
+                source_state == VCoreSel::LfVcore0 {
+                source_state = VCoreSel::LdoVcore0;
+            } else if source_state == VCoreSel::LdoVcore1 &&
+                self.source != VCoreSel::DcdcVcore1 && self.source != VCoreSel::LfVcore1 {
+                source_state = VCoreSel::LdoVcore0;
+            } else if source_state == VCoreSel::LdoVcore0 &&
+                self.source != VCoreSel::DcdcVcore0 && self.source != VCoreSel::LfVcore0 {
+                source_state = VCoreSel::LdoVcore1;
+            } else {
+                source_state = self.source;
+            }
+
+            self.set_vcore_inline(source_state);
+            source_state = self.get_vcore();
+
+        }
+
+        self.source = source_state;
+        self
+    }
+
     fn wait_pcm(&self) {
-        while (self.periph.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
+        while (self.pcm.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
             unsafe{llvm_asm!("NOP")};
         }
 
@@ -110,119 +176,61 @@ impl <'a, S>PcmConfig<'a, S> where S: State{
         }
     }
 
-    #[inline]
-
     fn set_reg_mask(&self, value: u16, mask: u16) {
 
-    /// CSKEY
-    const CSKEY: u32 = 0x695A0000;
+        const CSKEY: u32 = 0x695A0000;
 
-        self.periph.pcmctl0.modify(|r, w| unsafe {
+        self.pcm.pcmctl0.modify(|r, w| unsafe {
             w.bits((r.bits() & mask as u32) | CSKEY | value as u32)
         });
 
-        self.periph.pcmctl0.modify(|r, w| unsafe {
+        self.pcm.pcmctl0.modify(|r, w| unsafe {
             w.bits(r.bits() & !CSKEY)
         });
     }
-}
 
-impl <'a>PcmConfig<'a, PcmDefined> {
+    fn set_vcore_inline(&mut self, source: VCoreSel) {
 
-        #[inline]
-        pub fn set_vcore(&mut self, source: VCoreSel) {
+        let amr_mask: u16 = 0xFFF0;
 
-            let mut source_state: VCoreSel;
-            source_state = self.get_vcore();
-
-            if source_state == source {
-
-            for _n in 1..50 {
-                unsafe{llvm_asm!("NOP")};
-            }
-                return;
-            }
-
-            while source_state != source {
-
-                if source_state == VCoreSel::DcdcVcore1 ||
-                   source_state == VCoreSel::LfVcore1 {
-                    source_state = VCoreSel::LdoVcore1;
-                } else if source_state == VCoreSel::DcdcVcore0 ||
-                   source_state == VCoreSel::LfVcore0 {
-                   source_state = VCoreSel::LdoVcore0;
-                } else if source_state == VCoreSel::LdoVcore1 &&
-                   source != VCoreSel::DcdcVcore1 && source != VCoreSel::LfVcore1 {
-                   source_state = VCoreSel::LdoVcore0;
-                } else if source_state == VCoreSel::LdoVcore0 &&
-                    source != VCoreSel::DcdcVcore0 && source != VCoreSel::LfVcore0 {
-                     source_state = VCoreSel::LdoVcore1;
-                } else {
-                    source_state = source;
-                }
-
-                self.set_vcore_inline(source_state);
-                source_state = self.get_vcore();
-            }
-        }
-
-        #[inline]
-        fn set_vcore_inline(&mut self, source: VCoreSel) {
-
-            let mut status: u32;
-
-            let amr_mask: u16 = 0xFFF0;
-
-            /* save the PRIMASK into 'status' */
-            unsafe { llvm_asm!("mrs $0, PRIMASK" : "=r" (status) : : : "volatile") };
-
-            /* set PRIMASK to disable interrupts */
-            unsafe { llvm_asm!("cpsid i" : : : : "volatile") };
-
+        interrupt::free(|_| {
             self.wait_pcm();
-
             self.set_reg_mask(source.vcoresel(), amr_mask);
-
             self.wait_pcm();
+        });
+    }
 
-            /* restore PRIMASK from 'status' */
-            unsafe { llvm_asm!("msr PRIMASK, $0" : : "r" (status) : : "volatile") };
-
+    fn get_vcore(&self) -> VCoreSel {
+        match self.pcm.pcmctl0.read().bits() as u8 & 0x0F {
+            0 => VCoreSel::LdoVcore0,
+            1 => VCoreSel::LdoVcore1,
+            4 => VCoreSel::DcdcVcore0,
+            5 => VCoreSel::DcdcVcore1,
+            8 => VCoreSel::LfVcore0,
+            9 => VCoreSel::LfVcore1,
+            _ => VCoreSel::LdoVcore0,
         }
+    }
 
-        #[inline]
-        fn get_vcore(&self) -> VCoreSel {
-            match self.periph.pcmctl0.read().bits() as u8 & 0x0F {
-                0 => VCoreSel::LdoVcore0,
-                1 => VCoreSel::LdoVcore1,
-                4 => VCoreSel::DcdcVcore0,
-                5 => VCoreSel::DcdcVcore1,
-                8 => VCoreSel::LfVcore0,
-                9 => VCoreSel::LfVcore1,
-                _ => VCoreSel::LdoVcore0,
-            }
+    pub fn get_powermode(&self) -> VCoreCheck {
+
+        match self.pcm.pcmctl0.read().cpm().bits() as u8 {
+            0 => VCoreCheck::LdoVcore0,
+            1 => VCoreCheck::LdoVcore1,
+            4 => VCoreCheck::DcdcVcore0,
+            5 => VCoreCheck::DcdcVcore1,
+            8 => VCoreCheck::LfVcore0,
+            9 => VCoreCheck::LfVcore1,
+            16 => VCoreCheck::Lpm0LdoVcore0,
+            17 => VCoreCheck::Lpm0LdoVcore1,
+            20 => VCoreCheck::Lpm0DcdcVcore0,
+            21 => VCoreCheck::Lpm0DcdcVcore1,
+            24 => VCoreCheck::Lpm0LfVcore0,
+            25 => VCoreCheck::Lpm0LfVcore1,
+            32 => VCoreCheck::Lpm3,
+            _ => VCoreCheck::LdoVcore0,
         }
-
-        #[inline]
-        pub fn get_powermode(&self) -> VCoreCheck {
-
-            match self.periph.pcmctl0.read().cpm().bits() as u8 {
-                0 => VCoreCheck::LdoVcore0,
-                1 => VCoreCheck::LdoVcore1,
-                4 => VCoreCheck::DcdcVcore0,
-                5 => VCoreCheck::DcdcVcore1,
-                8 => VCoreCheck::LfVcore0,
-                9 => VCoreCheck::LfVcore1,
-                16 => VCoreCheck::Lpm0LdoVcore0,
-                17 => VCoreCheck::Lpm0LdoVcore1,
-                20 => VCoreCheck::Lpm0DcdcVcore0,
-                21 => VCoreCheck::Lpm0DcdcVcore1,
-                24 => VCoreCheck::Lpm0LfVcore0,
-                25 => VCoreCheck::Lpm0LfVcore1,
-                32 => VCoreCheck::Lpm3,
-                _ => VCoreCheck::LdoVcore0,
-            }
-        }
+    }
 }
 
 
