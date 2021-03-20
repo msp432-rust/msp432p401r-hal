@@ -71,7 +71,9 @@ impl CsExt for CS {
 
 /// Typestates for `ClockConfig`
 pub struct NoClockDefined;
-pub struct MclkDefined(MclkSel);
+
+pub struct MclkDefined(MasterClock);
+
 pub struct SmclkDefined(SMPrescaler);
 
 pub const MODCLK: u32 = 25_000_000;
@@ -81,7 +83,7 @@ pub const HFXTMINCLK: u32 = 1_000_000;
 pub const HFXTMAXCLK: u32 = 48_000_000;
 
 #[derive(Debug, Clone, Copy)]
-pub enum HFCrystalFrequency {
+pub enum HighFrequencyCrystal {
     _1_4MHz,
     _4_8MHz,
     _8_16MHz,
@@ -91,29 +93,28 @@ pub enum HFCrystalFrequency {
     _40_48MHz,
 }
 
-impl HFCrystalFrequency {
-
+impl HighFrequencyCrystal {
     const fn hfxtsel(&self) -> HFXTFREQ_A {
         match *self {
-            HFCrystalFrequency::_1_4MHz => HFXTFREQ_A::HFXTFREQ_0,
-            HFCrystalFrequency::_4_8MHz => HFXTFREQ_A::HFXTFREQ_1,
-            HFCrystalFrequency::_8_16MHz => HFXTFREQ_A::HFXTFREQ_2,
-            HFCrystalFrequency::_16_24MHz => HFXTFREQ_A::HFXTFREQ_3,
-            HFCrystalFrequency::_24_32MHz => HFXTFREQ_A::HFXTFREQ_4,
-            HFCrystalFrequency::_32_40MHz => HFXTFREQ_A::HFXTFREQ_5,
-            HFCrystalFrequency::_40_48MHz => HFXTFREQ_A::HFXTFREQ_6,
+            HighFrequencyCrystal::_1_4MHz => HFXTFREQ_A::HFXTFREQ_0,
+            HighFrequencyCrystal::_4_8MHz => HFXTFREQ_A::HFXTFREQ_1,
+            HighFrequencyCrystal::_8_16MHz => HFXTFREQ_A::HFXTFREQ_2,
+            HighFrequencyCrystal::_16_24MHz => HFXTFREQ_A::HFXTFREQ_3,
+            HighFrequencyCrystal::_24_32MHz => HFXTFREQ_A::HFXTFREQ_4,
+            HighFrequencyCrystal::_32_40MHz => HFXTFREQ_A::HFXTFREQ_5,
+            HighFrequencyCrystal::_40_48MHz => HFXTFREQ_A::HFXTFREQ_6,
         }
     }
 
     pub const fn freq(&self) -> u32 {
         match *self {
-            HFCrystalFrequency::_1_4MHz => 4_000_000,
-            HFCrystalFrequency::_4_8MHz => 8_000_000,
-            HFCrystalFrequency::_8_16MHz => 16_000_000,
-            HFCrystalFrequency::_16_24MHz => 24_000_000,
-            HFCrystalFrequency::_24_32MHz => 32_000_000,
-            HFCrystalFrequency::_32_40MHz => 40_000_000,
-            HFCrystalFrequency::_40_48MHz => 48_000_000,
+            HighFrequencyCrystal::_1_4MHz => 4_000_000,
+            HighFrequencyCrystal::_4_8MHz => 8_000_000,
+            HighFrequencyCrystal::_8_16MHz => 16_000_000,
+            HighFrequencyCrystal::_16_24MHz => 24_000_000,
+            HighFrequencyCrystal::_24_32MHz => 32_000_000,
+            HighFrequencyCrystal::_32_40MHz => 40_000_000,
+            HighFrequencyCrystal::_40_48MHz => 48_000_000,
         }
     }
 }
@@ -121,23 +122,22 @@ impl HFCrystalFrequency {
 /// Default: 32.768 KHz
 #[derive(Debug, Clone, Copy)]
 pub enum REFOFrequency {
-    _32_768,
-    _128_000,
+    _32kHz,
+    _128kHz,
 }
 
 impl REFOFrequency {
-
     fn refofsel(&self) -> REFOFSEL_A {
         match *self {
-            REFOFrequency::_32_768 => REFOFSEL_A::REFOFSEL_0,
-            REFOFrequency::_128_000 => REFOFSEL_A::REFOFSEL_1,
+            REFOFrequency::_32kHz => REFOFSEL_A::REFOFSEL_0,
+            REFOFrequency::_128kHz => REFOFSEL_A::REFOFSEL_1,
         }
     }
 
     pub fn freq(&self) -> u32 {
         match *self {
-            REFOFrequency::_32_768 => 32_768,
-            REFOFrequency::_128_000 => 128_000,
+            REFOFrequency::_32kHz => 32_768,
+            REFOFrequency::_128kHz => 128_000,
         }
     }
 }
@@ -145,7 +145,7 @@ impl REFOFrequency {
 /// Default: 3 MHz
 #[derive(Debug, Clone, Copy)]
 pub enum DCOFrequency {
-    _1500KHz,
+    _1500kHz,
     _3MHz,
     _6MHz,
     _12MHz,
@@ -154,10 +154,9 @@ pub enum DCOFrequency {
 }
 
 impl DCOFrequency {
-
-    fn dcorsel(&self) -> DCORSEL_A {
+    fn frequecy_range(&self) -> DCORSEL_A {
         match *self {
-            DCOFrequency::_1500KHz => DCORSEL_A::DCORSEL_0,
+            DCOFrequency::_1500kHz => DCORSEL_A::DCORSEL_0,
             DCOFrequency::_3MHz => DCORSEL_A::DCORSEL_1,
             DCOFrequency::_6MHz => DCORSEL_A::DCORSEL_2,
             DCOFrequency::_12MHz => DCORSEL_A::DCORSEL_3,
@@ -168,7 +167,7 @@ impl DCOFrequency {
 
     pub fn freq(&self) -> u32 {
         match *self {
-            DCOFrequency::_1500KHz => 1_500_000,
+            DCOFrequency::_1500kHz => 1_500_000,
             DCOFrequency::_3MHz => 3_000_000,
             DCOFrequency::_6MHz => 6_000_000,
             DCOFrequency::_12MHz => 12_000_000,
@@ -179,36 +178,35 @@ impl DCOFrequency {
 }
 
 #[derive(Debug)]
-enum MclkSel {
-    Vloclk,
-    Modclk,
-    Lfxtclk,
-    Refoclk(REFOFrequency),
-    Hfxtclk(HFCrystalFrequency),
-    Dcoclk(DCOFrequency),
+enum MasterClock {
+    VLOCLK,
+    MODCLK,
+    LFXTCLK,
+    REFOCLK(REFOFrequency),
+    HFXTCLK(HighFrequencyCrystal),
+    DCOCLK(DCOFrequency),
 }
 
-impl MclkSel {
-
+impl MasterClock {
     fn freq(&self) -> u32 {
         match *self {
-            MclkSel::Vloclk => VLOCLK as u32,
-            MclkSel::Modclk => MODCLK as u32,
-            MclkSel::Lfxtclk => LFXTCLK as u32,
-            MclkSel::Refoclk(sel) => sel.freq(),
-            MclkSel::Hfxtclk(sel) => sel.freq(),
-            MclkSel::Dcoclk(sel) => sel.freq(),
+            MasterClock::VLOCLK => VLOCLK as u32,
+            MasterClock::MODCLK => MODCLK as u32,
+            MasterClock::LFXTCLK => LFXTCLK as u32,
+            MasterClock::REFOCLK(sel) => sel.freq(),
+            MasterClock::HFXTCLK(sel) => sel.freq(),
+            MasterClock::DCOCLK(sel) => sel.freq(),
         }
     }
 
     fn selm(&self) -> SELM_A {
         match *self {
-            MclkSel::Lfxtclk => SELM_A::SELM_0,
-            MclkSel::Vloclk => SELM_A::SELM_1,
-            MclkSel::Refoclk(_) => SELM_A::SELM_2,
-            MclkSel::Dcoclk(_) => SELM_A::SELM_3,
-            MclkSel::Modclk => SELM_A::SELM_4,
-            MclkSel::Hfxtclk(_) => SELM_A::SELM_5,
+            MasterClock::LFXTCLK => SELM_A::SELM_0,
+            MasterClock::VLOCLK => SELM_A::SELM_1,
+            MasterClock::REFOCLK(_) => SELM_A::SELM_2,
+            MasterClock::DCOCLK(_) => SELM_A::SELM_3,
+            MasterClock::MODCLK => SELM_A::SELM_4,
+            MasterClock::HFXTCLK(_) => SELM_A::SELM_5,
         }
     }
 }
@@ -219,12 +217,11 @@ enum HSMclkSel {
     Modclk,
     Lfxtclk,
     Refoclk(REFOFrequency),
-    Hfxtclk(HFCrystalFrequency),
+    Hfxtclk(HighFrequencyCrystal),
     Dcoclk(DCOFrequency),
 }
 
 impl HSMclkSel {
-
     fn freq(&self) -> u32 {
         match *self {
             HSMclkSel::Vloclk => VLOCLK as u32,
@@ -256,7 +253,6 @@ enum AclkSel {
 }
 
 impl AclkSel {
-
     fn sela(&self) -> SELA_A {
         match *self {
             AclkSel::Lfxtclk => SELA_A::SELA_0,
@@ -280,7 +276,6 @@ pub trait SmclkState {
 }
 
 impl SmclkState for SmclkDefined {
-
     fn div(&self) -> Option<SMPrescaler> {
         Some(*&self.0)
     }
@@ -319,14 +314,13 @@ impl ClockConfig<NoClockDefined, NoClockDefined> {
             smclk: NoClockDefined,
             mclk: NoClockDefined,
             mclk_div: MPrescaler::DIVM_0,
-            aclk_sel: AclkSel::Refoclk(REFOFrequency::_32_768),
+            aclk_sel: AclkSel::Refoclk(REFOFrequency::_32kHz),
             smclk_sel: HSMclkSel::Dcoclk(DCOFrequency::_3MHz),
         }
     }
 }
 
 impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
-
     pub fn aclk_lfcrystalsource_selection(mut self) -> Self {
         self.aclk_sel = AclkSel::Lfxtclk;
         self
@@ -344,73 +338,67 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 
     /// Select REFOCLK for MCLK and set the MCLK divider. Frequency is `REFOCLK / mclk_div` Hz.
     pub fn mclk_refosource_selection(self, target_freq: REFOFrequency, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
         let smclk_sel = HSMclkSel::Refoclk(target_freq);
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Refoclk(target_freq)), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::REFOCLK(target_freq)), self.smclk)
         }
     }
 
     /// Select LFXTCLK for MCLK and set the MCLK divider. Frequency is `LFXTCLK / mclk_div` Hz.
     pub fn mclk_lfcrystalsource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
         let smclk_sel = HSMclkSel::Lfxtclk;
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Lfxtclk), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::LFXTCLK), self.smclk)
         }
     }
 
     /// Select MODCLK for MCLK and set the MCLK divider. Frequency is `MODCLK / mclk_div` Hz.
     pub fn mclk_modsource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
         let smclk_sel = HSMclkSel::Modclk;
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Modclk), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::MODCLK), self.smclk)
         }
     }
 
     /// Select VLOCLK for MCLK and set the MCLK divider. Frequency is `VLO / mclk_div` Hz.
     pub fn mclk_vlosource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
         let smclk_sel = HSMclkSel::Vloclk;
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Vloclk), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::VLOCLK), self.smclk)
         }
     }
 
     /// Select HFXTCLK for MCLK and set the MCLK divider. Frequency is `HFXTCLK / mclk_div` Hz.
-    pub fn mclk_hfcrystalsource_selection(self, target_freq: HFCrystalFrequency, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
+    pub fn mclk_hfcrystalsource_selection(self, target_freq: HighFrequencyCrystal, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Hfxtclk(target_freq);
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Hfxtclk(target_freq)), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::HFXTCLK(target_freq)), self.smclk)
         }
     }
 
     /// Select DCOCLK for MCLK with FLL for stabilization. Frequency is `target_freq / mclk_div` Hz.
     pub fn mclk_dcosource_selection(self, target_freq: DCOFrequency, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
-
         let smclk_sel = HSMclkSel::Dcoclk(target_freq);
 
         ClockConfig {
             mclk_div,
             smclk_sel,
-            ..make_clkconf!(self, MclkDefined(MclkSel::Dcoclk(target_freq)), self.smclk)
+            ..make_clkconf!(self, MclkDefined(MasterClock::DCOCLK(target_freq)), self.smclk)
         }
     }
 
@@ -421,42 +409,37 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
 }
 
 impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
-
     fn configure_dco_fll(&self) {
-
-        if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
-            self.cs.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
+        if let MasterClock::DCOCLK(target_freq) = self.mclk.0 {
+            self.cs.csctl0.write(|w| { w.dcorsel().variant(target_freq.frequecy_range()) });
 
             for _n in 1..50 {
-                unsafe{llvm_asm!("NOP")};
+                unsafe { llvm_asm!("NOP") };
             }
         };
     }
 
     fn configure_hfxt(&self) {
-
-        if let MclkSel::Hfxtclk(target_freq) = self.mclk.0 {
-            self.cs.csctl2.write(|w|  { w.hfxtfreq().variant(target_freq.hfxtsel()) });
+        if let MasterClock::HFXTCLK(target_freq) = self.mclk.0 {
+            self.cs.csctl2.write(|w| { w.hfxtfreq().variant(target_freq.hfxtsel()) });
 
             for _n in 1..50 {
-                unsafe{llvm_asm!("NOP")};
+                unsafe { llvm_asm!("NOP") };
             }
         };
     }
 
     fn configure_refo(&self) {
-
-        if let MclkSel::Refoclk(target_freq) = self.mclk.0 {
-            self.cs.csclken.write(|w|  { w.refofsel().variant(target_freq.refofsel()) })
+        if let MasterClock::REFOCLK(target_freq) = self.mclk.0 {
+            self.cs.csclken.write(|w| { w.refofsel().variant(target_freq.refofsel()) })
         };
 
         if let AclkSel::Refoclk(target_freq) = self.aclk_sel {
-            self.cs.csclken.write(|w|  { w.refofsel().variant(target_freq.refofsel()) })
+            self.cs.csclken.write(|w| { w.refofsel().variant(target_freq.refofsel()) })
         };
     }
 
     fn configure_cs(&self) {
-
         const CS_STAT: u8 = 0b00011111;
         const CS_MASK_ACLK: u32 = 0xF8FFF8FF;
         const CS_MASK_MCLK: u32 = 0xFFF8FFF8;
@@ -468,7 +451,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
         // ACLK SEL
         self.cs.csctl1.modify(|r, w| unsafe {
             w.bits(r.bits() & CS_MASK_ACLK)
-             .sela().variant(self.aclk_sel.sela())
+                .sela().variant(self.aclk_sel.sela())
         });
 
         self.wait_clk(CS_STAT);
@@ -476,8 +459,8 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
         // MCLK SEL | MCLK DIV
         self.cs.csctl1.modify(|r, w| unsafe {
             w.bits(r.bits() & CS_MASK_MCLK)
-             .selm().variant(self.mclk.0.selm())
-             .divm().variant(self.mclk_div)
+                .selm().variant(self.mclk.0.selm())
+                .divm().variant(self.mclk_div)
         });
 
         self.wait_clk(CS_STAT);
@@ -485,7 +468,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
         // SMCLK SEL | SMCLK DIV
         self.cs.csctl1.modify(|r, w| unsafe {
             w.bits(r.bits() & CS_MASK_SMCLK)
-             .sels().variant(self.smclk_sel.sels());
+                .sels().variant(self.smclk_sel.sels());
             match self.smclk.div() {
                 Some(div) => w.divs().variant(div),
                 None => w.divs().variant(SMPrescaler::DIVS_0),
@@ -496,10 +479,9 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
     }
 
     fn cs_key(&self, keylock: bool) {
-
         const CSKEY: u32 = 0x695A;
 
-        if keylock{
+        if keylock {
             self.cs.cskey.write(|w| unsafe { w.bits(CSKEY) });
         } else {
             self.cs.cskey.write(|w| unsafe { w.bits(!CSKEY) });
@@ -507,19 +489,17 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
     }
 
     fn wait_clk(&self, flag: u8) {
+        for _n in 1..50 {
+            unsafe { llvm_asm!("NOP") };
+        }
 
-       for _n in 1..50 {
-            unsafe{llvm_asm!("NOP")};
-       }
-
-       while ((self.cs.csstat.read().bits() >> 24) as u8 & flag) != flag {
-            unsafe{llvm_asm!("NOP")};
-       };
+        while ((self.cs.csstat.read().bits() >> 24) as u8 & flag) != flag {
+            unsafe { llvm_asm!("NOP") };
+        };
     }
 }
 
 impl ClockConfig<MclkDefined, SmclkDefined> {
-
     /// Apply clock configuration to hardware and return clock objects
     pub fn freeze(self) -> Clocks {
         interrupt::free(|_| {
@@ -533,10 +513,10 @@ impl ClockConfig<MclkDefined, SmclkDefined> {
             self.cs_key(false);
         });
 
-        let aclk_freq :u32 = self.aclk_sel.freq();
+        let aclk_freq: u32 = self.aclk_sel.freq();
         let mclk_freq = self.mclk.0.freq() >> self.mclk_div as u32;
-        let hsmclk_freq :u32 = self.smclk_sel.freq();
-        let smclk_freq :u32 = self.smclk_sel.freq() / self.smclk.0 as u32;
+        let hsmclk_freq: u32 = self.smclk_sel.freq();
+        let smclk_freq: u32 = self.smclk_sel.freq() / self.smclk.0 as u32;
 
         let clocks = Clocks {
             aclk: Hertz(aclk_freq),
@@ -562,24 +542,23 @@ pub struct Clocks {
 }
 
 impl Clocks {
-
-    pub fn aclk(&self) -> Hertz {
+    pub fn aux_clock(&self) -> Hertz {
         self.aclk
     }
 
-    pub fn mclk(&self) -> Hertz {
+    pub fn master_clock(&self) -> Hertz {
         self.mclk
     }
 
-    pub fn hsmclk(&self) -> Hertz {
+    pub fn subsystem_master_clock(&self) -> Hertz {
         self.hsmclk
     }
 
-    pub fn smclk(&self) -> Hertz {
+    pub fn low_frequency_subsystem_master_clock(&self) -> Hertz {
         self.smclk
     }
 
-    pub fn bclk(&self) -> Hertz {
+    pub fn backup_clock(&self) -> Hertz {
         self.bclk
     }
 }
