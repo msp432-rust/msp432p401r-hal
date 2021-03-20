@@ -481,11 +481,11 @@ impl<'a, SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
         if let MclkSel::Dcoclk(target_freq) = self.mclk.0 {
             self.cs.csctl0.write(|w|  { w.dcorsel().variant(target_freq.dcorsel()) });
 
-               for _n in 1..50 {
-                   unsafe{llvm_asm!("NOP")};
-               }
-            };
-        }
+            for _n in 1..50 {
+                unsafe{llvm_asm!("NOP")};
+            }
+        };
+    }
 
     #[inline]
     fn configure_hfxt(&self) {
