@@ -1,5 +1,7 @@
 use core::marker::PhantomData;
 
+use crate::pac::PMAP;
+use crate::pmap::{Mapping, PmapExt};
 pub use hal::digital::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
 
 pub struct Input<MODE> {
@@ -58,7 +60,7 @@ macro_rules! gpio {
     ($DIO:ident, {
         $(($portx:ident, $pxdir:ident, $pxout:ident, $pxin:ident, $pxren:ident, $pxsel0:ident, $pxsel1:ident, $pxie:ident, $pxies:ident, $pxifg:ident, $PXx:ident): {
           $($PIx:ident: [
-            $($PI_i:ident: ($pxi:ident, $i:expr, $j:expr, $pidir:ident, $piout:ident, $piin:ident, $piren:ident, $pisel0:ident, $pisel1:ident, $piie:ident, $piies:ident, $piifg:ident, $MODE:ty),)+
+            $($PI_i:ident: ($pxi:ident, $i:expr, $j:expr, $pidir:ident, $piout:ident, $piin:ident, $piren:ident, $pisel0:ident, $pisel1:ident, $piie:ident, $piies:ident, $piifg:ident, $MODE:ty$(, $pimapxy:ident)?),)+
           ])+
         })+
     }) => {
@@ -246,6 +248,21 @@ macro_rules! gpio {
                             }
                         }
 
+                        $(
+                          impl $PI_i<Alternate<Primary>> {
+                            pub fn remap(&self, mapping: Mapping, pmap: &mut PMAP) {
+                              unsafe {
+                                pmap.configure(true, |pmap| {
+                                  pmap.$pimapxy.modify(|r, w| {
+                                    const offset: u16 = ($i % 2) * 8;
+                                    w.pmapx().bits((r.pmapx().bits() & !(0xff << offset)) | (mapping as u16) << offset)
+                                  })
+                                });
+                              }
+                            }
+                          }
+                        )*
+
                         impl OutputPin for $PI_i<Output> {
                             type Error = Infallible;
 
@@ -318,80 +335,80 @@ use pac::DIO;
 gpio!(DIO, {
     (porta, padir, paout, pain, paren, pasel0, pasel1, paie, paies, paifg, PAx): {
         P1x: [
-            P1_0: (p1_0, 0, 0, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_1: (p1_1, 1, 1, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_2: (p1_2, 2, 2, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_3: (p1_3, 3, 3, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_4: (p1_4, 4, 4, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_5: (p1_5, 5, 5, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_6: (p1_6, 6, 6, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
-            P1_7: (p1_7, 7, 7, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>),
+            P1_0: (p1_0, 0, 0, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map01),
+            P1_1: (p1_1, 1, 1, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map01),
+            P1_2: (p1_2, 2, 2, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map23),
+            P1_3: (p1_3, 3, 3, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map23),
+            P1_4: (p1_4, 4, 4, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map45),
+            P1_5: (p1_5, 5, 5, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map45),
+            P1_6: (p1_6, 6, 6, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map67),
+            P1_7: (p1_7, 7, 7, p1dir, p1out, p1in, p1ren, p1sel0, p1sel1, p1ie, p1ies, p1ifg, Input<Floating>, p1map67),
         ]
         P2x: [
-            P2_0: (p2_0, 0,  8, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_1: (p2_1, 1,  9, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_2: (p2_2, 2, 10, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_3: (p2_3, 3, 11, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_4: (p2_4, 4, 12, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_5: (p2_5, 5, 13, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_6: (p2_6, 6, 14, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
-            P2_7: (p2_7, 7, 15, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>),
+            P2_0: (p2_0, 0,  8, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map01),
+            P2_1: (p2_1, 1,  9, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map01),
+            P2_2: (p2_2, 2, 10, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map23),
+            P2_3: (p2_3, 3, 11, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map23),
+            P2_4: (p2_4, 4, 12, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map45),
+            P2_5: (p2_5, 5, 13, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map45),
+            P2_6: (p2_6, 6, 14, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map67),
+            P2_7: (p2_7, 7, 15, p2dir, p2out, p2in, p2ren, p2sel0, p2sel1, p2ie, p2ies, p2ifg, Input<Floating>, p2map67),
         ]
     }
     (portb, pbdir, pbout, pbin, pbren, pbsel0, pbsel1, pbie, pbies, pbifg, PBx): {
         P3x: [
-            P3_0: (p3_0, 0, 0, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_1: (p3_1, 1, 1, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_2: (p3_2, 2, 2, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_3: (p3_3, 3, 3, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_4: (p3_4, 4, 4, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_5: (p3_5, 5, 5, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_6: (p3_6, 6, 6, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
-            P3_7: (p3_7, 7, 7, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>),
+            P3_0: (p3_0, 0, 0, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map01),
+            P3_1: (p3_1, 1, 1, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map01),
+            P3_2: (p3_2, 2, 2, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map23),
+            P3_3: (p3_3, 3, 3, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map23),
+            P3_4: (p3_4, 4, 4, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map45),
+            P3_5: (p3_5, 5, 5, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map45),
+            P3_6: (p3_6, 6, 6, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map67),
+            P3_7: (p3_7, 7, 7, p3dir, p3out, p3in, p3ren, p3sel0, p3sel1, p3ie, p3ies, p3ifg, Input<Floating>, p3map67),
         ]
         P4x: [
-            P4_0: (p4_0, 0,  8, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_1: (p4_1, 1,  9, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_2: (p4_2, 2, 10, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_3: (p4_3, 3, 11, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_4: (p4_4, 4, 12, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_5: (p4_5, 5, 13, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_6: (p4_6, 6, 14, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
-            P4_7: (p4_7, 7, 15, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>),
+            P4_0: (p4_0, 0,  8, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map01),
+            P4_1: (p4_1, 1,  9, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map01),
+            P4_2: (p4_2, 2, 10, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map23),
+            P4_3: (p4_3, 3, 11, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map23),
+            P4_4: (p4_4, 4, 12, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map45),
+            P4_5: (p4_5, 5, 13, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map45),
+            P4_6: (p4_6, 6, 14, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map67),
+            P4_7: (p4_7, 7, 15, p4dir, p4out, p4in, p4ren, p4sel0, p4sel1, p4ie, p4ies, p4ifg, Input<Floating>, p4map67),
         ]
     }
     (portc, pcdir, pcout, pcin, pcren, pcsel0, pcsel1, pcie, pcies, pcifg, PCx): {
         P5x: [
-            P5_0: (p5_0, 0, 0, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_1: (p5_1, 1, 1, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_2: (p5_2, 2, 2, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_3: (p5_3, 3, 3, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_4: (p5_4, 4, 4, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_5: (p5_5, 5, 5, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_6: (p5_6, 6, 6, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
-            P5_7: (p5_7, 7, 7, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>),
+            P5_0: (p5_0, 0, 0, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map01),
+            P5_1: (p5_1, 1, 1, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map01),
+            P5_2: (p5_2, 2, 2, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map23),
+            P5_3: (p5_3, 3, 3, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map23),
+            P5_4: (p5_4, 4, 4, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map45),
+            P5_5: (p5_5, 5, 5, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map45),
+            P5_6: (p5_6, 6, 6, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map67),
+            P5_7: (p5_7, 7, 7, p5dir, p5out, p5in, p5ren, p5sel0, p5sel1, p5ie, p5ies, p5ifg, Input<Floating>, p5map67),
         ]
         P6x: [
-            P6_0: (p6_0, 0,  8, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_1: (p6_1, 1,  9, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_2: (p6_2, 2, 10, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_3: (p6_3, 3, 11, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_4: (p6_4, 4, 12, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_5: (p6_5, 5, 13, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_6: (p6_6, 6, 14, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
-            P6_7: (p6_7, 7, 15, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>),
+            P6_0: (p6_0, 0,  8, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map01),
+            P6_1: (p6_1, 1,  9, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map01),
+            P6_2: (p6_2, 2, 10, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map23),
+            P6_3: (p6_3, 3, 11, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map23),
+            P6_4: (p6_4, 4, 12, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map45),
+            P6_5: (p6_5, 5, 13, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map45),
+            P6_6: (p6_6, 6, 14, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map67),
+            P6_7: (p6_7, 7, 15, p6dir, p6out, p6in, p6ren, p6sel0, p6sel1, p6ie, p6ies, p6ifg, Input<Floating>, p6map67),
         ]
     }
     (portd, pddir, pdout, pdin, pdren, pdsel0, pdsel1, pdie, pdies, pdifg, PDx): {
         P7x: [
-            P7_0: (p7_0, 0, 0, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_1: (p7_1, 1, 1, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_2: (p7_2, 2, 2, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_3: (p7_3, 3, 3, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_4: (p7_4, 4, 4, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_5: (p7_5, 5, 5, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_6: (p7_6, 6, 6, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
-            P7_7: (p7_7, 7, 7, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>),
+            P7_0: (p7_0, 0, 0, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map01),
+            P7_1: (p7_1, 1, 1, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map01),
+            P7_2: (p7_2, 2, 2, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map23),
+            P7_3: (p7_3, 3, 3, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map23),
+            P7_4: (p7_4, 4, 4, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map45),
+            P7_5: (p7_5, 5, 5, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map45),
+            P7_6: (p7_6, 6, 6, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map67),
+            P7_7: (p7_7, 7, 7, p7dir, p7out, p7in, p7ren, p7sel0, p7sel1, p7ie, p7ies, p7ifg, Input<Floating>, p7map67),
         ]
         P8x: [
             P8_0: (p8_0, 0,  8, p8dir, p8out, p8in, p8ren, p8sel0, p8sel1, p8ie, p8ies, p8ifg, Input<Floating>),
