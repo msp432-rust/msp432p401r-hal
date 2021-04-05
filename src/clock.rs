@@ -534,11 +534,11 @@ impl ClockConfig<MclkDefined, SmclkDefined> {
 /// This value holds the current clocks frequencies
 #[derive(Clone, Copy)]
 pub struct Clocks {
-    aclk: Hertz,
-    mclk: Hertz,
-    hsmclk: Hertz,
-    smclk: Hertz,
-    bclk: Hertz,
+    pub aclk: Hertz,
+    pub mclk: Hertz,
+    pub hsmclk: Hertz,
+    pub smclk: Hertz,
+    pub bclk: Hertz,
 }
 
 impl Clocks {

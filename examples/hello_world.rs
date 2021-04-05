@@ -9,11 +9,15 @@ use cortex_m_semihosting::hprintln;
 use msp432p401r_hal as hal;
 use msp432p401r as pac;
 
+#[macro_use(block)]
+extern crate nb;
+
 use hal::watchdog::{WDTExt, Watchdog,TimerInterval};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::clock::{CsExt, MPrescaler, SMPrescaler, DCOFrequency};
 use hal::pcm::{PcmExt, VCoreSel};
 use hal::flash::{FlashExt, FlashWaitStates};
+use hal::timer::{TimerExt, TimerUnt, Count, CountDown};
 
 #[entry]
 fn main() -> ! {
@@ -24,7 +28,7 @@ fn main() -> ! {
     // Watchdog Config.
     let mut _watchdog = p.WDT_A.constrain();                                 // Setup WatchdogTimer
 
-    _watchdog.set_timer_interval(TimerInterval::At27);
+    _watchdog.set_timer_interval(TimerInterval::At31);
     _watchdog.try_feed().unwrap();
 
     // PCM Config.
@@ -48,12 +52,13 @@ fn main() -> ! {
     let gpio = p.DIO.split();
     let mut p1_0 = gpio.p1_0.into_output();
 
+    let mut tim0 = p.TIMER_A0.constrain().set_clock(_clock);
+    let count = Count(4, TimerUnt::Sec);
+    tim0.try_start(count).unwrap();
+
     loop {
         _watchdog.try_feed().unwrap();
         p1_0.try_toggle().unwrap();
-        let mut delay = 100000;
-        while delay > 0 {
-            delay = delay - 1;
-        }
+        block!(tim0.try_wait()).unwrap();
     }
 }

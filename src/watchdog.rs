@@ -114,7 +114,7 @@ impl<S> WatchdogTimer<S> where S: State {
 
 impl WatchdogTimer<Enabled> {
 
-    pub fn new(wdt: WDT_A) -> WatchdogTimer<Enabled> {
+    const fn new(wdt: WDT_A) -> WatchdogTimer<Enabled> {
         WatchdogTimer {
             wdt,
             state: Enabled,
