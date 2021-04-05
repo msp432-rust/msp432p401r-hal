@@ -10,3 +10,7 @@ pub mod time;
 pub mod clock;
 pub mod pcm;
 pub mod flash;
+pub mod timer;
+
+pub use nb;
+pub use nb::block;
