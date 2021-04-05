@@ -8,13 +8,13 @@ repository = "https://github.com/msp432-rust/msp432p401r-hal"
 license-file = "LICENSE"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-cortex-m = "0.6.0"
-cortex-m-rt = "0.6.10"
+cortex-m = "0.7.1"
+cortex-m-rt = "0.6.11"
 msp432p401r-pac = "0.1.0"
-embedded-hal = "1.0.0-alpha.3"
+cortex-m-semihosting = "0.3.3"
+embedded-hal = "1.0.0-alpha.4"
+nb = "1.0.0"
 
 [features]
-rt =  ["msp432p401r-pac/rt"]
+rt = ["msp432p401r-pac/rt"]
