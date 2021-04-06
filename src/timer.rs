@@ -166,7 +166,7 @@ macro_rules! timer {
                 }
 
                 fn setup_period(&self, period: u32) -> bool {
-                    let smclk_period = (period*self.clocks.smclk.0)/1000;
+                    let smclk_period = period*(self.clocks.smclk.0/1000);
                     let aclk_period = (period*self.clocks.aclk.0)/1000;
                     let max_period = MAX_PRESCALER * MAX_COUNT;
 
