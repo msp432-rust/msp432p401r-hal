@@ -160,22 +160,26 @@ macro_rules! timer {
                     }
                 }
 
-                fn reset_ctl(&self, value: u8, prescaler: u8) {
+                fn set_clock_source(&self, value: u8, prescaler: u8) {
                     self.clear_ctl(0x0F, 0x06);
                     self.set_ctl((value | prescaler) as u16, 0x06);
                 }
 
                 fn setup_period(&self, period: u32) -> bool {
-                    if (period*(self.clocks.smclk.0/1000) < (MAX_PRESCALER * MAX_COUNT)) {
-                        let prescaler = self.get_prescaler(((period*(self.clocks.smclk.0/1000))/MAX_COUNT) as u8 + 1);
-                        self.reset_ctl(0x08, prescaler[1]);
+                    let smclk_period = period*(self.clocks.smclk.0/1000);
+                    let aclk_period = period*(self.clocks.aclk.0/1000);
+                    let max_period = MAX_PRESCALER * MAX_COUNT;
+
+                    if smclk_period < max_period {
+                        let prescaler = self.get_prescaler((smclk_period / MAX_COUNT) as u8 + 1);
                         let count = ((period * self.clocks.smclk.0) / (prescaler[2] as u32 * 1000)) as u16;
+                        self.set_clock_source(0x08, prescaler[1]);
                         self.setup_count(count);
                         true
-                    } else if ((period*self.clocks.aclk.0)/1000 < (MAX_PRESCALER * MAX_COUNT)) {
-                        let prescaler = self.get_prescaler((((period*self.clocks.aclk.0)/1000)/MAX_COUNT) as u8 + 1);
-                        self.reset_ctl(0x04, prescaler[1]);
+                    } else if aclk_period < max_period {
+                        let prescaler = self.get_prescaler((aclk_period / MAX_COUNT) as u8 + 1);
                         let count = ((period * self.clocks.aclk.0) / (prescaler[2] as u32 * 1000)) as u16;
+                        self.set_clock_source(0x04, prescaler[1]);
                         self.setup_count(count);
                         true
                     } else {
@@ -186,14 +190,14 @@ macro_rules! timer {
                 fn setup_frequency(&self, frequency: u32) -> bool {
                     if (frequency > (self.clocks.smclk.0 / (MAX_COUNT * MAX_PRESCALER))) {
                         let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT * frequency)) as u8);
-                        self.reset_ctl(0x08, prescaler[1]);
                         let count = (self.clocks.smclk.0 / (frequency * prescaler[2] as u32)) as u16;
+                        self.set_clock_source(0x08, prescaler[1]);
                         self.setup_count(count);
                         true
                     } else if (frequency > (self.clocks.aclk.0 / (MAX_COUNT * MAX_PRESCALER))) {
                         let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT * frequency)) as u8);
-                        self.reset_ctl(0x04, prescaler[1]);
                         let count = (self.clocks.aclk.0 / (frequency * prescaler[2] as u32)) as u16;
+                        self.set_clock_source(0x04, prescaler[1]);
                         self.setup_count(count);
                         true
                     } else {
