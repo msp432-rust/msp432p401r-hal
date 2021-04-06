@@ -8,6 +8,9 @@ repository = "https://github.com/msp432-rust/msp432p401r-hal"
 license-file = "LICENSE"
 edition = "2018"
 
+[dev-dependencies]
+panic-halt = "0.2.0"
+
 [dependencies]
 cortex-m = "0.7.1"
 cortex-m-rt = "0.6.11"
