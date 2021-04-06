@@ -13,4 +13,3 @@ pub mod flash;
 pub mod timer;
 
 pub use nb;
-pub use nb::block;

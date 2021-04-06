@@ -3,21 +3,18 @@
 #![feature(llvm_asm)]
 
 use cortex_m_rt::entry;
-use panic_halt as _;
 use cortex_m_semihosting::hprintln;
-
-use msp432p401r_hal as hal;
 use msp432p401r as pac;
+use nb::block;
+use panic_halt as _;
 
-#[macro_use(block)]
-extern crate nb;
-
-use hal::watchdog::{WDTExt, Watchdog,TimerInterval};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
-use hal::clock::{CsExt, MPrescaler, SMPrescaler, DCOFrequency};
-use hal::pcm::{PcmExt, VCoreSel};
+use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashExt, FlashWaitStates};
-use hal::timer::{TimerExt, TimerUnit, Count, CountDown};
+use hal::gpio::{GpioExt, ToggleableOutputPin};
+use hal::pcm::{PcmExt, VCoreSel};
+use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
+use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
+use msp432p401r_hal as hal;
 
 #[entry]
 fn main() -> ! {
