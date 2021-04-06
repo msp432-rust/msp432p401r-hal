@@ -153,10 +153,10 @@ macro_rules! timer {
                 #[inline]
                 fn setup_timer(&self, count: Count) -> bool {
                     match count.1 {
-                        TimerUnit::Hertz => self.setup_hz(count.0),
-                        TimerUnit::KiloHertz => self.setup_hz(1000*count.0),
-                        TimerUnit::MilliSeconds => self.setup_sec(count.0),
-                        TimerUnit::Seconds => self.setup_sec(1000*count.0),
+                        TimerUnit::Hertz => self.setup_frequency(count.0),
+                        TimerUnit::KiloHertz => self.setup_frequency(1000*count.0),
+                        TimerUnit::MilliSeconds => self.setup_period(count.0),
+                        TimerUnit::Seconds => self.setup_period(1000*count.0),
                     }
                 }
 
@@ -165,7 +165,7 @@ macro_rules! timer {
                     self.set_ctl((value | prescaler) as u16, 0x06);
                 }
 
-                fn setup_sec(&self, period: u32) -> bool {
+                fn setup_period(&self, period: u32) -> bool {
                     if (period*(self.clocks.smclk.0/1000) < (MAX_PRESCALER * MAX_COUNT)) {
                         let prescaler = self.get_prescaler(((period*(self.clocks.smclk.0/1000))/MAX_COUNT) as u8 + 1);
                         self.reset_ctl(0x08, prescaler[1]);
@@ -183,7 +183,7 @@ macro_rules! timer {
                     }
                 }
 
-                fn setup_hz(&self, frequency: u32) -> bool {
+                fn setup_frequency(&self, frequency: u32) -> bool {
                     if (frequency > (self.clocks.smclk.0 / (MAX_COUNT * MAX_PRESCALER))) {
                         let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT * frequency)) as u8);
                         self.reset_ctl(0x08, prescaler[1]);
