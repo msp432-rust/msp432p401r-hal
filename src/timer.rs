@@ -165,32 +165,36 @@ macro_rules! timer {
                     self.set_ctl(value | prescaler[1] as u16, 0x06);
                 }
 
-                fn setup_sec(&self, value: u32) -> bool {
-                    if (value*(self.clocks.smclk.0/1000) < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-                        let prescaler = self.get_prescaler(((value*(self.clocks.smclk.0/1000))/(MAX_COUNT as u32)) as u8 + 1);
+                fn setup_sec(&self, period: u32) -> bool {
+                    if (period*(self.clocks.smclk.0/1000) < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
+                        let prescaler = self.get_prescaler(((period*(self.clocks.smclk.0/1000))/(MAX_COUNT as u32)) as u8 + 1);
                         self.reset_ctl(0x08);
-                        self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.smclk.0);
+                        let count: u16 = (period * self.clocks.smclk.0) / (prescaler[2] as u32 * 1000);
+                        self.setup_count(count);
                         true
-                    } else if ((value*self.clocks.aclk.0)/1000 < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-                        let prescaler = self.get_prescaler((((value*self.clocks.aclk.0)/1000)/(MAX_COUNT as u32)) as u8 + 1);
+                    } else if ((period*self.clocks.aclk.0)/1000 < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
+                        let prescaler = self.get_prescaler((((period*self.clocks.aclk.0)/1000)/(MAX_COUNT as u32)) as u8 + 1);
                         self.reset_ctl(0x04);
-                        self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.aclk.0);
+                        let count: u16 = (period * self.clocks.aclk.0) / (prescaler[2] as u32 * 1000);
+                        self.setup_count(count);
                         true
                     } else {
                         false
                     }
                 }
 
-                fn setup_hz(&self, value: u32) -> bool {
-                    if (value > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT as u32 * value)) as u8);
+                fn setup_hz(&self, frequency: u32) -> bool {
+                    if (frequency > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
+                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT as u32 * frequency)) as u8);
                         self.reset_ctl(0x08);
-                        self.setup_count(self.clocks.smclk.0, value * prescaler[2] as u32, 1);
+                        let count: u16 = self.clocks.smclk.0 / (frequency * prescaler[2] as u32);
+                        self.setup_count(count);
                         true
-                    } else if (value > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT as u32 * value)) as u8);
+                    } else if (frequency > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
+                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT as u32 * frequency)) as u8);
                         self.reset_ctl(0x04);
-                        self.setup_count(self.clocks.aclk.0, value * prescaler[2] as u32, 1);
+                        let count: u16 = self.clocks.aclk.0 / (frequency * prescaler[2] as u32);
+                        self.setup_count(count);
                         true
                     } else {
                         false
@@ -198,13 +202,9 @@ macro_rules! timer {
                 }
 
                 #[inline]
-                fn setup_count(&self, val1: u32, val2: u32, val3: u32) {
-
-                    let count: u16;
-                    count = ((val1 * val3)/val2) as u16;
-
+                fn setup_count(&self, count: u16) {
                     self.tim.tax_ccr[0].modify(|r, w| unsafe {
-                        w.bits(r.bits() | (count))
+                        w.bits(r.bits() | count)
                     });
                 }
 
