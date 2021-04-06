@@ -31,36 +31,42 @@ Currently under development:
 - [ ] Power Supply System
 - [ ] Cortex M4 Periph 
 
-# How to run the examples?
+## Running the examples
 
-Setup Rust beta and add the ARM build platform target:
+Make sure you have OpenOCD and [GNU ARM Embedded toolchain](https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/downloads) installed and up-to-date
 
-$ rustup default beta
+```shell
+$ brew install openocd --HEAD
+```
 
+Setup Rust nightly and add the ARM build platform target:
+
+```shell
+$ rustup default nightly
 $ rustup target add thumbv7em-none-eabihf
+```
 
 Clone and compile the project:
 
+```shell
 $ git clone https://github.com/msp432-rust/msp432p401r-hal.git
-
 $ cd msp432p401r-hal
-
-$ cargo build
-
-$ cargo build --example "example name"
+$ example=hello_world
+$ cargo build --example $example
+```
 
 Open a OpenOCD server and leave it open in a terminal:
 
+```shell
 $ openocd
+```
 
 On a separate terminal, open the GDB client:
 
-$ arm-none-eabi-gdb -q target/thumbv7em-none-eabihf/debug/examples/"example name"
-
-$ (gdb) target remote :3333
-
+```shell
+$ arm-none-eabi-gdb -q target/thumbv7em-none-eabihf/debug/examples/$example
+$ (gdb) target extended-remote :3333
 $ (gdb) load
-
 $ (gdb) monitor arm semihosting enable
-
 $ (gdb) continue
+```
