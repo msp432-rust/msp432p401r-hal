@@ -1,8 +1,5 @@
 //! HAL library for Timer module (Timer32 and TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-
-use crate::clock::Clocks;
-use crate::time::{Hertz};
 // TIMER 32 TO_DO!
 //use pac::TIMER32;
 use pac::TIMER_A0;
@@ -10,17 +7,24 @@ use pac::TIMER_A1;
 use pac::TIMER_A2;
 use pac::TIMER_A3;
 
+use crate::clock::Clocks;
+use crate::time::Hertz;
+
 pub trait State {}
 
 pub struct ClockNotDefined;
+
 pub struct ClockDefined;
 
+const MAX_PRESCALER: u32 = 0x0040;
+const MAX_COUNT: u32 = 0xFFFF;
+
 #[derive(Debug, Copy, Clone)]
-pub enum TimerUnt {
+pub enum TimerUnit {
     Hertz,
-    KHertz,
-    MiliSec,
-    Sec,
+    Kilohertz,
+    Milliseconds,
+    Seconds,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,12 +34,13 @@ pub enum Error {
     Unreachable,
 }
 
-pub struct Count(pub u32, pub TimerUnt);
+pub struct Count(pub u32, pub TimerUnit);
 
 impl State for ClockNotDefined {}
+
 impl State for ClockDefined {}
 
-pub struct TimerConfig <T, S: State>{
+pub struct TimerConfig<T, S: State> {
     clocks: Clocks,
     tim: T,
     _state: S,
@@ -47,7 +52,7 @@ pub trait TimerExt {
     fn constrain(self) -> Self::Output;
 }
 
-macro_rules! make_timerconf {
+macro_rules! timer {
     ($($TIMER:ident, $tim:ident),*) => {
         $(
             impl TimerExt for $TIMER {
@@ -124,16 +129,14 @@ macro_rules! make_timerconf {
 
                 #[inline]
                 fn timer_wrapped(&mut self) -> bool {
-
-                let val: u16 = self.tim.tax_r.read().bits();
-
-                    if(self.count > val && self.count >= self.tim.tax_ccr[0].read().bits() - 1) {
-                        self.count = 0;
-                        true
-                    } else {
-                        self.count = val;
-                        false
-                    }
+                    let val: u16 = self.tim.tax_r.read().bits();
+                        if(self.count > val && self.count >= self.tim.tax_ccr[0].read().bits() - 1) {
+                            self.count = 0;
+                            true
+                        } else {
+                            self.count = val;
+                            false
+                        }
                 }
 
                 #[inline]
@@ -150,81 +153,64 @@ macro_rules! make_timerconf {
                 #[inline]
                 fn setup_timer(&self, count: Count) -> bool {
                     match count.1 {
-                        TimerUnt::Hertz => self.setup_hz(count.0),
-                        TimerUnt::KHertz => self.setup_hz(1000*count.0),
-                        TimerUnt::MiliSec => self.setup_sec(count.0),
-                        TimerUnt::Sec => self.setup_sec(1000*count.0),
+                        TimerUnit::Hertz => self.setup_frequency(count.0),
+                        TimerUnit::Kilohertz => self.setup_frequency(1000*count.0),
+                        TimerUnit::Milliseconds => self.setup_period(count.0),
+                        TimerUnit::Seconds => self.setup_period(1000*count.0),
                     }
                 }
 
-                fn setup_sec(&self, value: u32) -> bool {
-                    const MAX_PRESCALER: u8 = 0x0040;
-                    const MAX_COUNT: u16 = 0xFFFF;
+                fn set_clock_source(&self, value: u8, prescaler: u8) {
+                    self.clear_ctl(0x0F, 0x06);
+                    self.set_ctl((value | prescaler) as u16, 0x06);
+                }
 
-                    if (value*(self.clocks.smclk.0/1000) < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
+                fn setup_period(&self, period: u32) -> bool {
+                    let smclk_period = (period*self.clocks.smclk.0)/1000;
+                    let aclk_period = (period*self.clocks.aclk.0)/1000;
+                    let max_period = MAX_PRESCALER * MAX_COUNT;
 
-                        let prescaler = self.get_prescaler(((value*(self.clocks.smclk.0/1000))/(MAX_COUNT as u32)) as u8 + 1);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x08 | prescaler[1] as u16,0x06);
-                        self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.smclk.0);
-
+                    if smclk_period < max_period {
+                        let prescaler = self.get_prescaler((smclk_period / MAX_COUNT) as u8 + 1);
+                        let count = ((period * self.clocks.smclk.0) / (prescaler[2] as u32 * 1000)) as u16;
+                        self.set_clock_source(0x08, prescaler[1]);
+                        self.setup_count(count);
                         true
-
-                    } else if ((value*self.clocks.aclk.0)/1000 < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-
-                        let prescaler = self.get_prescaler((((value*self.clocks.aclk.0)/1000)/(MAX_COUNT as u32)) as u8 + 1);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x04 | prescaler[1] as u16,0x06);
-                        self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.aclk.0);
-
+                    } else if aclk_period < max_period {
+                        let prescaler = self.get_prescaler((aclk_period / MAX_COUNT) as u8 + 1);
+                        let count = ((period * self.clocks.aclk.0) / (prescaler[2] as u32 * 1000)) as u16;
+                        self.set_clock_source(0x04, prescaler[1]);
+                        self.setup_count(count);
                         true
-
                     } else {
-
                         false
                     }
                 }
 
-                fn setup_hz(&self, value: u32) -> bool {
-                    const MAX_PRESCALER: u8 = 0x0040;
-                    const MAX_COUNT: u16 = 0xFFFF;
+                fn setup_frequency(&self, frequency: u32) -> bool {
+                    let max_period = MAX_PRESCALER * MAX_COUNT;
 
-                    if(value > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-
-                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT as u32 * value)) as u8);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x08 | prescaler[1] as u16,0x06);
-                        self.setup_count(self.clocks.smclk.0, value * prescaler[2] as u32, 1);
-
+                    if (frequency > (self.clocks.smclk.0 / max_period)) {
+                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT * frequency)) as u8);
+                        let count = (self.clocks.smclk.0 / (frequency * prescaler[2] as u32)) as u16;
+                        self.set_clock_source(0x08, prescaler[1]);
+                        self.setup_count(count);
                         true
-
-                    } else if(value > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-
-                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT as u32 * value)) as u8);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x04 | prescaler[1] as u16,0x06);
-                        self.setup_count(self.clocks.aclk.0, value * prescaler[2] as u32, 1);
-
+                    } else if (frequency > (self.clocks.aclk.0 / max_period)) {
+                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT * frequency)) as u8);
+                        let count = (self.clocks.aclk.0 / (frequency * prescaler[2] as u32)) as u16;
+                        self.set_clock_source(0x04, prescaler[1]);
+                        self.setup_count(count);
                         true
-
                     } else {
-
                         false
                     }
                 }
 
                 #[inline]
-                fn setup_count(&self, val1: u32, val2: u32, val3: u32) {
-
-                    let count: u16;
-                    count = ((val1 * val3)/val2) as u16;
-
+                fn setup_count(&self, count: u16) {
                     self.tim.tax_ccr[0].modify(|r, w| unsafe {
-                        w.bits(r.bits() | (count))
+                        w.bits(r.bits() | count)
                     });
                 }
 
@@ -255,12 +241,11 @@ macro_rules! make_timerconf {
                 }
 
                 #[inline]
-                fn setup_prescaler(&self, val1: u8, val2: u8) -> [u8;3] {
+                fn setup_prescaler(&self, divider: u8, val2: u8) -> [u8;3] {
                     self.tim.tax_ex0.modify(|r, w| unsafe {
-                        w.bits(r.bits() | (val1 as u16))
+                        w.bits(r.bits() | (divider as u16))
                     });
-
-                    [val1, val2, 2u8.pow(val2.into())*(val1+1)]
+                    [divider, val2, 2u8.pow(val2.into())*(divider+1)]
                 }
 
                 #[inline]
@@ -330,7 +315,7 @@ macro_rules! make_timerconf {
     };
 }
 
-make_timerconf!{
+timer! {
     TIMER_A0, tim0,
     TIMER_A1, tim1,
     TIMER_A2, tim2,
