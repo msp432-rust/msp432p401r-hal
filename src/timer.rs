@@ -1,8 +1,5 @@
 //! HAL library for Timer module (Timer32 and TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-
-use crate::clock::Clocks;
-use crate::time::{Hertz};
 // TIMER 32 TO_DO!
 //use pac::TIMER32;
 use pac::TIMER_A0;
@@ -10,17 +7,24 @@ use pac::TIMER_A1;
 use pac::TIMER_A2;
 use pac::TIMER_A3;
 
+use crate::clock::Clocks;
+use crate::time::Hertz;
+
 pub trait State {}
 
 pub struct ClockNotDefined;
+
 pub struct ClockDefined;
 
+const MAX_PRESCALER: u8 = 0x0040;
+const MAX_COUNT: u16 = 0xFFFF;
+
 #[derive(Debug, Copy, Clone)]
-pub enum TimerUnt {
+pub enum TimerUnit {
     Hertz,
-    KHertz,
-    MiliSec,
-    Sec,
+    KiloHertz,
+    MilliSeconds,
+    Seconds,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,12 +34,13 @@ pub enum Error {
     Unreachable,
 }
 
-pub struct Count(pub u32, pub TimerUnt);
+pub struct Count(pub u32, pub TimerUnit);
 
 impl State for ClockNotDefined {}
+
 impl State for ClockDefined {}
 
-pub struct TimerConfig <T, S: State>{
+pub struct TimerConfig<T, S: State> {
     clocks: Clocks,
     tim: T,
     _state: S,
@@ -47,7 +52,7 @@ pub trait TimerExt {
     fn constrain(self) -> Self::Output;
 }
 
-macro_rules! make_timerconf {
+macro_rules! timer {
     ($($TIMER:ident, $tim:ident),*) => {
         $(
             impl TimerExt for $TIMER {
@@ -124,16 +129,14 @@ macro_rules! make_timerconf {
 
                 #[inline]
                 fn timer_wrapped(&mut self) -> bool {
-
-                let val: u16 = self.tim.tax_r.read().bits();
-
-                    if(self.count > val && self.count >= self.tim.tax_ccr[0].read().bits() - 1) {
-                        self.count = 0;
-                        true
-                    } else {
-                        self.count = val;
-                        false
-                    }
+                    let val: u16 = self.tim.tax_r.read().bits();
+                        if(self.count > val && self.count >= self.tim.tax_ccr[0].read().bits() - 1) {
+                            self.count = 0;
+                            true
+                        } else {
+                            self.count = val;
+                            false
+                        }
                 }
 
                 #[inline]
@@ -150,69 +153,46 @@ macro_rules! make_timerconf {
                 #[inline]
                 fn setup_timer(&self, count: Count) -> bool {
                     match count.1 {
-                        TimerUnt::Hertz => self.setup_hz(count.0),
-                        TimerUnt::KHertz => self.setup_hz(1000*count.0),
-                        TimerUnt::MiliSec => self.setup_sec(count.0),
-                        TimerUnt::Sec => self.setup_sec(1000*count.0),
+                        TimerUnit::Hertz => self.setup_hz(count.0),
+                        TimerUnit::KiloHertz => self.setup_hz(1000*count.0),
+                        TimerUnit::MilliSeconds => self.setup_sec(count.0),
+                        TimerUnit::Seconds => self.setup_sec(1000*count.0),
                     }
                 }
 
+                fn reset_ctl(&self, value: u8) {
+                    self.clear_ctl(0x0F, 0x06);
+                    self.set_ctl(value | prescaler[1] as u16, 0x06);
+                }
+
                 fn setup_sec(&self, value: u32) -> bool {
-                    const MAX_PRESCALER: u8 = 0x0040;
-                    const MAX_COUNT: u16 = 0xFFFF;
-
                     if (value*(self.clocks.smclk.0/1000) < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-
                         let prescaler = self.get_prescaler(((value*(self.clocks.smclk.0/1000))/(MAX_COUNT as u32)) as u8 + 1);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x08 | prescaler[1] as u16,0x06);
+                        self.reset_ctl(0x08);
                         self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.smclk.0);
-
                         true
-
                     } else if ((value*self.clocks.aclk.0)/1000 < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-
                         let prescaler = self.get_prescaler((((value*self.clocks.aclk.0)/1000)/(MAX_COUNT as u32)) as u8 + 1);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x04 | prescaler[1] as u16,0x06);
+                        self.reset_ctl(0x04);
                         self.setup_count(value, prescaler[2] as u32 * 1000, self.clocks.aclk.0);
-
                         true
-
                     } else {
-
                         false
                     }
                 }
 
                 fn setup_hz(&self, value: u32) -> bool {
-                    const MAX_PRESCALER: u8 = 0x0040;
-                    const MAX_COUNT: u16 = 0xFFFF;
-
-                    if(value > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-
+                    if (value > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
                         let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT as u32 * value)) as u8);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x08 | prescaler[1] as u16,0x06);
+                        self.reset_ctl(0x08);
                         self.setup_count(self.clocks.smclk.0, value * prescaler[2] as u32, 1);
-
                         true
-
-                    } else if(value > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-
+                    } else if (value > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
                         let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT as u32 * value)) as u8);
-
-                        self.clear_ctl(0x0F,0x06);
-                        self.set_ctl(0x04 | prescaler[1] as u16,0x06);
+                        self.reset_ctl(0x04);
                         self.setup_count(self.clocks.aclk.0, value * prescaler[2] as u32, 1);
-
                         true
-
                     } else {
-
                         false
                     }
                 }
@@ -330,7 +310,7 @@ macro_rules! make_timerconf {
     };
 }
 
-make_timerconf!{
+timer! {
     TIMER_A0, tim0,
     TIMER_A1, tim1,
     TIMER_A2, tim2,

@@ -17,7 +17,7 @@ use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::clock::{CsExt, MPrescaler, SMPrescaler, DCOFrequency};
 use hal::pcm::{PcmExt, VCoreSel};
 use hal::flash::{FlashExt, FlashWaitStates};
-use hal::timer::{TimerExt, TimerUnt, Count, CountDown};
+use hal::timer::{TimerExt, TimerUnit, Count, CountDown};
 
 #[entry]
 fn main() -> ! {
@@ -53,7 +53,7 @@ fn main() -> ! {
     let mut p1_0 = gpio.p1_0.into_output();
 
     let mut tim0 = p.TIMER_A0.constrain().set_clock(_clock);
-    let count = Count(4, TimerUnt::Sec);
+    let count = Count(4, TimerUnit::Seconds);
     tim0.try_start(count).unwrap();
 
     loop {
