@@ -16,8 +16,8 @@ pub struct ClockNotDefined;
 
 pub struct ClockDefined;
 
-const MAX_PRESCALER: u8 = 0x0040;
-const MAX_COUNT: u16 = 0xFFFF;
+const MAX_PRESCALER: u32 = 0x0040;
+const MAX_COUNT: u32 = 0xFFFF;
 
 #[derive(Debug, Copy, Clone)]
 pub enum TimerUnit {
@@ -166,14 +166,14 @@ macro_rules! timer {
                 }
 
                 fn setup_sec(&self, period: u32) -> bool {
-                    if (period*(self.clocks.smclk.0/1000) < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-                        let prescaler = self.get_prescaler(((period*(self.clocks.smclk.0/1000))/(MAX_COUNT as u32)) as u8 + 1);
+                    if (period*(self.clocks.smclk.0/1000) < (MAX_PRESCALER * MAX_COUNT)) {
+                        let prescaler = self.get_prescaler(((period*(self.clocks.smclk.0/1000))/MAX_COUNT) as u8 + 1);
                         self.reset_ctl(0x08, prescaler[1]);
                         let count = ((period * self.clocks.smclk.0) / (prescaler[2] as u32 * 1000)) as u16;
                         self.setup_count(count);
                         true
-                    } else if ((period*self.clocks.aclk.0)/1000 < (MAX_PRESCALER as u32 * MAX_COUNT as u32)) {
-                        let prescaler = self.get_prescaler((((period*self.clocks.aclk.0)/1000)/(MAX_COUNT as u32)) as u8 + 1);
+                    } else if ((period*self.clocks.aclk.0)/1000 < (MAX_PRESCALER * MAX_COUNT)) {
+                        let prescaler = self.get_prescaler((((period*self.clocks.aclk.0)/1000)/MAX_COUNT) as u8 + 1);
                         self.reset_ctl(0x04, prescaler[1]);
                         let count = ((period * self.clocks.aclk.0) / (prescaler[2] as u32 * 1000)) as u16;
                         self.setup_count(count);
@@ -184,14 +184,14 @@ macro_rules! timer {
                 }
 
                 fn setup_hz(&self, frequency: u32) -> bool {
-                    if (frequency > (self.clocks.smclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT as u32 * frequency)) as u8);
+                    if (frequency > (self.clocks.smclk.0 / (MAX_COUNT * MAX_PRESCALER))) {
+                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT * frequency)) as u8);
                         self.reset_ctl(0x08, prescaler[1]);
                         let count = (self.clocks.smclk.0 / (frequency * prescaler[2] as u32)) as u16;
                         self.setup_count(count);
                         true
-                    } else if (frequency > (self.clocks.aclk.0 / (MAX_COUNT as u32 * MAX_PRESCALER as u32))) {
-                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT as u32 * frequency)) as u8);
+                    } else if (frequency > (self.clocks.aclk.0 / (MAX_COUNT * MAX_PRESCALER))) {
+                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT * frequency)) as u8);
                         self.reset_ctl(0x04, prescaler[1]);
                         let count = (self.clocks.aclk.0 / (frequency * prescaler[2] as u32)) as u16;
                         self.setup_count(count);
