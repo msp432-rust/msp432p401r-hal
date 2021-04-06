@@ -36,13 +36,17 @@ Currently under development:
 Setup Rust beta and add the ARM build platform target:
 
 $ rustup default beta
+
 $ rustup target add thumbv7em-none-eabihf
 
 Clone and compile the project:
 
 $ git clone https://github.com/msp432-rust/msp432p401r-hal.git
+
 $ cd msp432p401r-hal
+
 $ cargo build
+
 $ cargo build --example "example name"
 
 Open a OpenOCD server and leave it open in a terminal:
@@ -52,7 +56,11 @@ $ openocd
 On a separate terminal, open the GDB client:
 
 $ arm-none-eabi-gdb -q target/thumbv7em-none-eabihf/debug/examples/"example name"
+
 $ (gdb) target remote :3333
+
 $ (gdb) load
+
 $ (gdb) monitor arm semihosting enable
+
 $ (gdb) continue
