@@ -1,7 +1,7 @@
 //! HAL library for Timer module (Timer32 and TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
 
-//use pac::TIMER32;
+/// ********************************            TIMER A            *********************************
 use pac::TIMER_A0;
 use pac::TIMER_A1;
 use pac::TIMER_A2;
@@ -10,11 +10,15 @@ use pac::TIMER_A3;
 use crate::clock::Clocks;
 use crate::time::Hertz;
 
+use ClockSource::*;
+use ClockSourcePrescaler::*;
+
 pub trait State {}
-
 pub struct ClockNotDefined;
-
 pub struct ClockDefined;
+
+impl State for ClockNotDefined {}
+impl State for ClockDefined {}
 
 const MAX_PRESCALER: u32 = 0x0040;
 const MAX_COUNT: u32 = 0xFFFF;
@@ -68,10 +72,6 @@ enum ClockSourcePrescaler {
 
 #[derive(PartialEq, PartialOrd)]
 pub struct Count(pub u32, pub TimerUnit);
-
-impl State for ClockNotDefined {}
-
-impl State for ClockDefined {}
 
 pub struct TimerConfig<T, S: State> {
     clocks: Clocks,
@@ -186,7 +186,6 @@ macro_rules! timer {
                 #[inline]
                 fn setup_timer(&self, count: Count) -> bool {
                     use TimerUnit::*;
-
                     match count.1 {
                         Hertz | Milliseconds => self.setup_count(count),
                         Kilohertz => self.setup_count(Count(count.0 * 1000, Hertz)),
@@ -196,24 +195,18 @@ macro_rules! timer {
 
                 #[inline]
                 fn setup_count(&self, count: Count) -> bool {
-                    use TimerUnit::*;
-                    use ClockSource::*;
 
                     let max_period = MAX_PRESCALER * MAX_COUNT;
                     let aclk_ratio: u32;
-                    let real_prescaler : ClockSourcePrescaler;
                     let smclk_ratio : u32;
-                    let tick_count : u16;
-                    let mut count_ratio : u32;
-                    let mut clock_source : ClockSource;
-                    let mut is_config: bool;
-                    let mut min_prescaler : u8;
+                    let mut count_ratio : u32  = 0;
+                    let mut clock_source : ClockSource = Smclk;
 
-                    is_config = false;
-                    count_ratio = 0;
-                    clock_source = Smclk;
+                    if count.0.checked_mul(self.clocks.aclk.0) == None {
+                        return false;
+                    }
 
-                    if count.1 == Hertz {
+                    if count.1 == TimerUnit::Hertz {
                         let frequency = count.0;
                         aclk_ratio = self.clocks.aclk.0 / frequency;
                         smclk_ratio = self.clocks.smclk.0 / frequency;
@@ -232,29 +225,29 @@ macro_rules! timer {
                     }
 
                     if count_ratio != 0 {
-                        min_prescaler = (count_ratio / MAX_COUNT) as u8;
+                        let mut min_prescaler = (count_ratio / MAX_COUNT) as u8;
 
                         // In period, prescaler need to be above the min_prescaler value
-                        if count.1 != Hertz {
+                        if count.1 != TimerUnit::Hertz {
                             min_prescaler = min_prescaler + 1;
                         }
 
-                        real_prescaler = self.get_prescaler(min_prescaler);
-                        tick_count = (count_ratio / real_prescaler as u32) as u16;
+                        let real_prescaler = self.get_prescaler(min_prescaler);
+                        let tick_count = (count_ratio / real_prescaler as u32) as u16;
                         self.set_clock_source(clock_source);
                         self.set_count(tick_count);
-                        is_config = true;
+                        true
+                    } else {
+                        false
                     }
-
-                    is_config
                 }
 
                 fn set_clock_source(&self, source: ClockSource) {
                   self.tim.tax_ctl.modify(|_, w| match source {
-                      ClockSource::ExternalTxclk          => w.tassel().tassel_0(),
-                      ClockSource::Aclk                    => w.tassel().tassel_1(),
-                      ClockSource::Smclk                   => w.tassel().tassel_2(),
-                      ClockSource::InvertedExternalTxclk => w.tassel().tassel_3(),
+                      ExternalTxclk         => w.tassel().tassel_0(),
+                      Aclk                  => w.tassel().tassel_1(),
+                      Smclk                 => w.tassel().tassel_2(),
+                      InvertedExternalTxclk => w.tassel().tassel_3(),
                     });
                 }
 
@@ -267,7 +260,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn get_prescaler(&self, min_prescaler: u8) -> ClockSourcePrescaler {
-                    use ClockSourcePrescaler::*;
 
                     match min_prescaler {
                         0..=1 => self.setup_prescaler(_1),
@@ -295,7 +287,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn setup_prescaler(&self, prescaler: ClockSourcePrescaler) -> ClockSourcePrescaler {
-                    use ClockSourcePrescaler::*;
 
                     match prescaler {
                         _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 => {
