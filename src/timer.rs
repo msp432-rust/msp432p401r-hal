@@ -1,6 +1,6 @@
 //! HAL library for Timer module (Timer32 and TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-// TIMER 32 TO_DO!
+
 //use pac::TIMER32;
 use pac::TIMER_A0;
 use pac::TIMER_A1;
@@ -19,7 +19,7 @@ pub struct ClockDefined;
 const MAX_PRESCALER: u32 = 0x0040;
 const MAX_COUNT: u32 = 0xFFFF;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub enum TimerUnit {
     Hertz,
     Kilohertz,
@@ -27,13 +27,46 @@ pub enum TimerUnit {
     Seconds,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
     Disabled,
     Enabled,
     Unreachable,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ClockSource {
+    ExternalTxclk,
+    Aclk,
+    Smclk,
+    InvertedExternalTxclk,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ClockSourcePrescaler {
+    _1 =  1,
+    _2 =  2,
+    _3 =  3,
+    _4 =  4,
+    _5 =  5,
+    _6 =  6,
+    _7 =  7,
+    _8 =  8,
+    _10 = 10,
+    _12 = 12,
+    _14 = 14,
+    _16 = 16,
+    _20 = 20,
+    _24 = 24,
+    _28 = 28,
+    _32 = 32,
+    _40 = 40,
+    _48 = 48,
+    _56 = 56,
+    _64 = 64,
+}
+
+#[derive(PartialEq, PartialOrd)]
 pub struct Count(pub u32, pub TimerUnit);
 
 impl State for ClockNotDefined {}
@@ -99,32 +132,32 @@ macro_rules! timer {
 
                 #[inline]
                 pub fn enable_interrupt(&mut self) {
-                    self.set_ctl(0x01, 0x01);
+                    self.tim.tax_ctl.modify(|_, w| w.taie().taie_1());
                 }
 
                 #[inline]
                 pub fn disable_interrupt(&mut self) {
-                    self.clear_ctl(0x01,0x01);
+                    self.tim.tax_ctl.modify(|_, w| w.taie().taie_0());
                 }
 
                 #[inline]
                 pub fn interrupt_enabled(&self) -> bool {
-                    self.tim.tax_ctl.read().bits() & (0x01 << 1) != 0
+                    self.tim.tax_ctl.read().taie().is_taie_1() == true
                 }
 
                 #[inline]
                 pub fn clear_interrupt_pending_bit(&mut self) {
-                    self.clear_ctl(0x01,0x00);
+                    self.tim.tax_ctl.modify(|_, w| w.taifg().clear_bit());
                 }
 
                 #[inline]
                 pub fn check_interrupt(&self) -> bool {
-                    self.tim.tax_ctl.read().bits() & (0x01 << 0) != 0
+                    self.tim.tax_ctl.read().taifg().is_taifg_1() == true
                 }
 
                 #[inline]
                 fn stop_timer(&mut self) {
-                    self.clear_ctl(0x03,0x04);
+                    self.tim.tax_ctl.modify(|_, w| w.mc().mc_0());
                 }
 
                 #[inline]
@@ -146,125 +179,149 @@ macro_rules! timer {
 
                 #[inline]
                 fn clear_timer(&mut self) {
-                    self.set_ctl(0x01, 0x02);
+                    self.tim.tax_ctl.modify(|_, w| w.taclr().set_bit());
                     self.count = 0;
                 }
 
                 #[inline]
                 fn setup_timer(&self, count: Count) -> bool {
+                    use TimerUnit::*;
+
                     match count.1 {
-                        TimerUnit::Hertz => self.setup_frequency(count.0),
-                        TimerUnit::Kilohertz => self.setup_frequency(1000*count.0),
-                        TimerUnit::Milliseconds => self.setup_period(count.0),
-                        TimerUnit::Seconds => self.setup_period(1000*count.0),
-                    }
-                }
-
-                fn set_clock_source(&self, value: u8, prescaler: u8) {
-                    self.clear_ctl(0x0F, 0x06);
-                    self.set_ctl((value | prescaler) as u16, 0x06);
-                }
-
-                fn setup_period(&self, period: u32) -> bool {
-                    let smclk_period = period*(self.clocks.smclk.0/1000);
-                    let aclk_period = (period*self.clocks.aclk.0)/1000;
-                    let max_period = MAX_PRESCALER * MAX_COUNT;
-
-                    if smclk_period < max_period {
-                        let prescaler = self.get_prescaler((smclk_period / MAX_COUNT) as u8 + 1);
-                        let count = ((period * self.clocks.smclk.0) / (prescaler[2] as u32 * 1000)) as u16;
-                        self.set_clock_source(0x08, prescaler[1]);
-                        self.setup_count(count);
-                        true
-                    } else if aclk_period < max_period {
-                        let prescaler = self.get_prescaler((aclk_period / MAX_COUNT) as u8 + 1);
-                        let count = ((period * self.clocks.aclk.0) / (prescaler[2] as u32 * 1000)) as u16;
-                        self.set_clock_source(0x04, prescaler[1]);
-                        self.setup_count(count);
-                        true
-                    } else {
-                        false
-                    }
-                }
-
-                fn setup_frequency(&self, frequency: u32) -> bool {
-                    let max_period = MAX_PRESCALER * MAX_COUNT;
-
-                    if (frequency > (self.clocks.smclk.0 / max_period)) {
-                        let prescaler = self.get_prescaler((self.clocks.smclk.0/(MAX_COUNT * frequency)) as u8);
-                        let count = (self.clocks.smclk.0 / (frequency * prescaler[2] as u32)) as u16;
-                        self.set_clock_source(0x08, prescaler[1]);
-                        self.setup_count(count);
-                        true
-                    } else if (frequency > (self.clocks.aclk.0 / max_period)) {
-                        let prescaler = self.get_prescaler((self.clocks.aclk.0/(MAX_COUNT * frequency)) as u8);
-                        let count = (self.clocks.aclk.0 / (frequency * prescaler[2] as u32)) as u16;
-                        self.set_clock_source(0x04, prescaler[1]);
-                        self.setup_count(count);
-                        true
-                    } else {
-                        false
+                        Hertz | Milliseconds => self.setup_count(count),
+                        Kilohertz => self.setup_count(Count(count.0 * 1000, Hertz)),
+                        Seconds => self.setup_count(Count(count.0 * 1000, Milliseconds)),
                     }
                 }
 
                 #[inline]
-                fn setup_count(&self, count: u16) {
+                fn setup_count(&self, count: Count) -> bool {
+                    use TimerUnit::*;
+                    use ClockSource::*;
+
+                    let max_period = MAX_PRESCALER * MAX_COUNT;
+                    let aclk_ratio: u32;
+                    let real_prescaler : ClockSourcePrescaler;
+                    let smclk_ratio : u32;
+                    let tick_count : u16;
+                    let mut count_ratio : u32;
+                    let mut clock_source : ClockSource;
+                    let mut is_config: bool;
+                    let mut min_prescaler : u8;
+
+                    is_config = false;
+                    count_ratio = 0;
+                    clock_source = Smclk;
+
+                    if count.1 == Hertz {
+                        let frequency = count.0;
+                        aclk_ratio = self.clocks.aclk.0 / frequency;
+                        smclk_ratio = self.clocks.smclk.0 / frequency;
+                    } else {
+                        let period = count.0;
+                        aclk_ratio = (period*self.clocks.aclk.0)/1000;
+                        smclk_ratio = period*(self.clocks.smclk.0/1000);
+                    }
+
+                    if(smclk_ratio < max_period) {
+                        count_ratio = smclk_ratio;
+                        clock_source = Smclk;
+                    } else if (aclk_ratio < max_period) {
+                        count_ratio = aclk_ratio;
+                        clock_source = Aclk;
+                    }
+
+                    if count_ratio != 0 {
+                        min_prescaler = (count_ratio / MAX_COUNT) as u8;
+
+                        // In period, prescaler need to be above the min_prescaler value
+                        if count.1 != Hertz {
+                            min_prescaler = min_prescaler + 1;
+                        }
+
+                        real_prescaler = self.get_prescaler(min_prescaler);
+                        tick_count = (count_ratio / real_prescaler as u32) as u16;
+                        self.set_clock_source(clock_source);
+                        self.set_count(tick_count);
+                        is_config = true;
+                    }
+
+                    is_config
+                }
+
+                fn set_clock_source(&self, source: ClockSource) {
+                  self.tim.tax_ctl.modify(|_, w| match source {
+                      ClockSource::ExternalTxclk          => w.tassel().tassel_0(),
+                      ClockSource::Aclk                    => w.tassel().tassel_1(),
+                      ClockSource::Smclk                   => w.tassel().tassel_2(),
+                      ClockSource::InvertedExternalTxclk => w.tassel().tassel_3(),
+                    });
+                }
+
+                #[inline]
+                fn set_count(&self, count: u16) {
                     self.tim.tax_ccr[0].modify(|r, w| unsafe {
                         w.bits(r.bits() | count)
                     });
                 }
 
                 #[inline]
-                fn get_prescaler(&self, val: u8) -> [u8;3] {
-                    match val {
-                        0..=1 => self.setup_prescaler(0, 0),
-                        2 => self.setup_prescaler(1, 0),
-                        3 => self.setup_prescaler(2, 0),
-                        4 => self.setup_prescaler(3, 0),
-                        5 => self.setup_prescaler(4, 0),
-                        6 => self.setup_prescaler(5, 0),
-                        7 => self.setup_prescaler(6, 0),
-                        8 => self.setup_prescaler(7, 0),
-                        9..=10 => self.setup_prescaler(4, 1),
-                        11..=12 => self.setup_prescaler(5, 1),
-                        13..=14 => self.setup_prescaler(6, 1),
-                        15..=16 => self.setup_prescaler(7, 1),
-                        17..=20 => self.setup_prescaler(4, 2),
-                        21..=24 => self.setup_prescaler(5, 2),
-                        25..=28 => self.setup_prescaler(6, 2),
-                        29..=32 => self.setup_prescaler(7, 2),
-                        33..=40 => self.setup_prescaler(4, 3),
-                        41..=48 => self.setup_prescaler(5, 3),
-                        49..=56 => self.setup_prescaler(6, 3),
-                        _ => self.setup_prescaler(7, 3),
+                fn get_prescaler(&self, min_prescaler: u8) -> ClockSourcePrescaler {
+                    use ClockSourcePrescaler::*;
+
+                    match min_prescaler {
+                        0..=1 => self.setup_prescaler(_1),
+                        2 => self.setup_prescaler(_2),
+                        3 => self.setup_prescaler(_3),
+                        4 => self.setup_prescaler(_4),
+                        5 => self.setup_prescaler(_5),
+                        6 => self.setup_prescaler(_6),
+                        7 => self.setup_prescaler(_7),
+                        8 => self.setup_prescaler(_8),
+                        9..=10 => self.setup_prescaler(_10),
+                        11..=12 => self.setup_prescaler(_12),
+                        13..=14 => self.setup_prescaler(_14),
+                        15..=16 => self.setup_prescaler(_16),
+                        17..=20 => self.setup_prescaler(_20),
+                        21..=24 => self.setup_prescaler(_24),
+                        25..=28 => self.setup_prescaler(_28),
+                        29..=32 => self.setup_prescaler(_32),
+                        33..=40 => self.setup_prescaler(_40),
+                        41..=48 => self.setup_prescaler(_48),
+                        49..=56 => self.setup_prescaler(_56),
+                        _ => self.setup_prescaler(_64),
                     }
                 }
 
                 #[inline]
-                fn setup_prescaler(&self, divider: u8, val2: u8) -> [u8;3] {
-                    self.tim.tax_ex0.modify(|r, w| unsafe {
-                        w.bits(r.bits() | (divider as u16))
-                    });
-                    [divider, val2, 2u8.pow(val2.into())*(divider+1)]
+                fn setup_prescaler(&self, prescaler: ClockSourcePrescaler) -> ClockSourcePrescaler {
+                    use ClockSourcePrescaler::*;
+
+                    match prescaler {
+                        _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 => {
+                            self.tim.tax_ctl.modify(|_,w| w.id().id_0());
+                            self.tim.tax_ex0.modify(|_, w| unsafe {w.bits(prescaler as u16 -1)} );
+                        },
+                        _10 | _12 | _14 | _16 => {
+                            self.tim.tax_ctl.modify(|_,w| w.id().id_1());
+                            self.tim.tax_ex0.modify(|_, w| unsafe {w.bits(prescaler as u16 / 2 -1)} );
+                        },
+                        _20 | _24 | _28 | _32 => {
+                            self.tim.tax_ctl.modify(|_,w| w.id().id_2());
+                            self.tim.tax_ex0.modify(|_, w| unsafe {w.bits(prescaler as u16 / 4 -1)} );
+                        },
+                        _40 | _48 | _56 | _64 => {
+                            self.tim.tax_ctl.modify(|_,w| w.id().id_3());
+                            self.tim.tax_ex0.modify(|_, w| unsafe {w.bits(prescaler as u16 / 8 -1)} );
+                        },
+                    }
+
+                    prescaler
                 }
 
                 #[inline]
                 fn start_timer(&self) {
-                    self.set_ctl(0x01, 0x04);
-                }
-
-                #[inline]
-                fn set_ctl(&self, val: u16, shift: u8) {
-                    self.tim.tax_ctl.modify(|r, w| unsafe {
-                        w.bits(r.bits() | (val << shift))
-                    });
-                }
-
-                #[inline]
-                fn clear_ctl(&self, val: u16, shift: u8) {
-                    self.tim.tax_ctl.modify(|r, w| unsafe {
-                        w.bits(r.bits() & !(val << shift))
-                    });
+                    self.tim.tax_ctl.modify(|_, w| w.mc().mc_1());
                 }
             }
 

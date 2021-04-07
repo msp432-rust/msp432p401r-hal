@@ -51,7 +51,7 @@ fn main() -> ! {
     let mut p1_0 = gpio.p1_0.into_output();
 
     let mut tim0 = p.TIMER_A0.constrain().set_clock(_clock);
-    let count = Count(4, TimerUnit::Seconds);
+    let count = Count(10, TimerUnit::Hertz);
     tim0.try_start(count).unwrap();
 
     loop {
