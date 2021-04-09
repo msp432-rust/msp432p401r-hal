@@ -10,12 +10,7 @@ use nb::block;
 use msp432p401r as pac;
 use msp432p401r_hal as hal;
 
-use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
-use hal::flash::{FlashExt, FlashWaitStates};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
-use hal::pcm::{PcmExt, VCoreSel};
-use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
+use hal::{clock::*, flash::*, gpio::*, pcm::*, timer::*, watchdog::*};
 
 #[entry]
 fn main() -> ! {
