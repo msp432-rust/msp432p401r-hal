@@ -13,5 +13,4 @@ pub mod clock;
 pub mod pcm;
 pub mod flash;
 pub mod timer;
-pub mod eusci;
-pub mod spi;
+pub mod serial;
