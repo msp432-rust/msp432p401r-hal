@@ -42,14 +42,14 @@ fn main() -> ! {
 
     let gpio = p.DIO.split();
 
-    let p1_0 = gpio.p1_0.into_alternate_primary();
-
-    let serial = p.EUSCI_A0.into_spi(gpio);
-
+    let spi_a0 = p.EUSCI_A0.into_spi()
+        .setup_ports(gpio.p1_0.into_alternate_primary(),
+                     gpio.p1_1.into_alternate_primary(),
+                     gpio.p1_2.into_alternate_primary(),
+                     gpio.p1_3.into_alternate_primary());
 
     loop {
         watchdog.try_feed().unwrap();
-        p1_0.try_toggle().unwrap();
         block!(tim0.try_wait()).unwrap();
     }
 }
