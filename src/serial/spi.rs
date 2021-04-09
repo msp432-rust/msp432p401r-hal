@@ -4,25 +4,22 @@ use hal::spi::FullDuplex;
 use pac::{EUSCI_A0, EUSCI_A1, EUSCI_A2, EUSCI_A3};
 use pac::{EUSCI_B0, EUSCI_B1, EUSCI_B2, EUSCI_B3};
 
+use crate::gpio::Parts;
 use crate::gpio::porta::*;
 
-pub trait SPI {
-    fn setup(self) -> Self;
-}
+use super::eusci::{Serial, SerialSPI, SPI};
 
 macro_rules! spi {
     ($($EUSCI:ident: [$($STE:ident, $CLK:ident, $SOMI:ident, $SIMO:ident)*],)+) => {
         $(
-            impl SPI for $EUSCI {
-                fn setup(self) {
+            impl SerialSPI for $EUSCI {
+                fn into_spi(self, gpio: Parts) -> Serial<SPI> {
+                    Serial { _mode: <SPI>::_new() }
                     // Set UCSWRST
                     // Initialize all eUSCI registers with UCSWRST = 1 (including UCxCTL1).
                     // Configure ports.
                     // Clear UCSWRST
 
-
-
-                    todo!()
                 }
             }
         )+

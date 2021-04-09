@@ -11,10 +11,12 @@ use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashExt, FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::{PcmExt, VCoreSel};
+use hal::serial::spi;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
-use hal::serial::spi;
+use hal::gpio::porta::P1x;
 use msp432p401r_hal as hal;
+use msp432p401r_hal::serial::eusci::SPI;
 
 #[entry]
 fn main() -> ! {
@@ -41,9 +43,8 @@ fn main() -> ! {
     let gpio = p.DIO.split();
 
     let p1_0 = gpio.p1_0.into_alternate_primary();
-    p1_0.into_alternate_primary();
 
-
+    let serial = p.EUSCI_A0.into_spi(gpio);
 
 
     loop {
