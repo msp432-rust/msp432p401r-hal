@@ -10,31 +10,46 @@ use crate::gpio::porta::*;
 use super::eusci::SPI;
 
 macro_rules! spi {
-    ($($SPI_Xi:ident: [$EUSCI:ident, $STE:ty, $CLK:ty, $SOMI:ty, $SIMO:ty],)+) => {
+    ($($SPI_Xi:ident: [$EUSCI:ident, $STE:ty, $CLK:ty, $MISO:ty, $MOSI:ty],)+) => {
         $(
             pub struct $SPI_Xi {
                 /// eUSCI SPI Clock
                 clk: $CLK,
                 /// Slave Transmit Enable
                 ste: $STE,
-                /// Slave out / Master in
-                somi: $SOMI,
-                /// Slave in / Master out
-                simo: $SIMO
+                /// Master in / Slave out
+                MISO: $MISO,
+                /// Master out / Slave in
+                MOSI: $MOSI
             }
 
-            /// Setup I/O ports into relevant alternate modes
             impl $SPI_Xi {
-                pub fn setup_ports(self, ste: $STE, clk: $CLK, somi: $SOMI, simo: $SIMO) -> Self {
-                    Self { clk, ste, somi, simo }
+                fn new(clk: $CLK, MISO: $MISO, MOSI: $MOSI, ste: $STE) -> Self {
+                    Self { clk, ste, MISO, MOSI }
+                }
+
+                pub fn set_clock() {
+
+                }
+
+                pub fn enable() {
+
+                }
+
+                pub fn disable() {
+
                 }
             }
 
             impl SPI for $EUSCI {
                 type Module = $SPI_Xi;
+                type MOSI = $MOSI;
+                type MISO = $MISO;
+                type STE = $STE;
+                type CLK = $CLK;
 
-                fn into_spi(self) -> $SPI_Xi {
-                    $SPI_Xi {}
+                fn into_spi(self, ste: $STE, clk: $CLK, miso: $MISO, mosi: $MOSI) -> $SPI_Xi {
+                    $SPI_Xi::new(clk, miso, mosi, ste)
 
                     // Set UCSWRST
                     // Initialize all eUSCI registers with UCSWRST = 1 (including UCxCTL1).

@@ -42,11 +42,14 @@ fn main() -> ! {
 
     let gpio = p.DIO.split();
 
-    let spi_a0 = p.EUSCI_A0.into_spi()
-        .setup_ports(gpio.p1_0.into_alternate_primary(),
-                     gpio.p1_1.into_alternate_primary(),
-                     gpio.p1_2.into_alternate_primary(),
-                     gpio.p1_3.into_alternate_primary());
+    let spi_a0 = p.EUSCI_A0.into_spi(
+        gpio.p1_0.into_alternate_primary(),
+        gpio.p1_1.into_alternate_primary(),
+        gpio.p1_2.into_alternate_primary(),
+        gpio.p1_3.into_alternate_primary(),
+    );
+
+    spi_a0.
 
     loop {
         watchdog.try_feed().unwrap();

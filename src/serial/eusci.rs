@@ -6,7 +6,12 @@ use crate::gpio::Parts;
 
 pub trait SPI {
     type Module;
-    fn into_spi(self) -> Self::Module;
+    type CLK;
+    type MISO;
+    type MOSI;
+    type STE;
+
+    fn into_spi(self, clk: Self::CLK, miso: Self::MISO, mosi: Self::MOSI, ste: Self::STE) -> Self::Module;
 }
 
 pub trait I2C {
