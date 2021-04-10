@@ -48,8 +48,6 @@ enum ClockSourcePrescaler {
     _64 = 64,
 }
 
-
-
 pub struct TimerConfig<T, S: State> {
     clocks: Clocks,
     tim: T,
