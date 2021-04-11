@@ -11,5 +11,3 @@ pub mod clock;
 pub mod pcm;
 pub mod flash;
 pub mod timer;
-
-pub use nb;
