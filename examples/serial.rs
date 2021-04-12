@@ -10,13 +10,15 @@ use panic_halt as _;
 use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashExt, FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
+use hal::gpio::porta::P1x;
 use hal::pcm::{PcmExt, VCoreSel};
 use hal::serial::spi;
+use hal::serial::SPI;
+use hal::serial::spi::Enabled;
+use hal::serial::spi::SPI_A0;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
-use hal::gpio::porta::P1x;
 use msp432p401r_hal as hal;
-use msp432p401r_hal::serial::eusci::SPI;
 
 #[entry]
 fn main() -> ! {
@@ -42,14 +44,10 @@ fn main() -> ! {
 
     let gpio = p.DIO.split();
 
-    let spi_a0 = p.EUSCI_A0.into_spi(
-        gpio.p1_0.into_alternate_primary(),
-        gpio.p1_1.into_alternate_primary(),
-        gpio.p1_2.into_alternate_primary(),
-        gpio.p1_3.into_alternate_primary(),
-    );
-
-    spi_a0.
+    let spi_a0: SPI_A0<Enabled> = p.EUSCI_A0.into_spi()
+        .setup_ports()
+        .setup_clock()
+        .init();
 
     loop {
         watchdog.try_feed().unwrap();
