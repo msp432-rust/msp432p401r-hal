@@ -16,6 +16,9 @@ use hal::serial::{spi, SPI};
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
 use msp432p401r_hal as hal;
+use msp432p401r_hal::serial::spi::spia::SPI_A0;
+use msp432p401r_hal::serial::spi::Enabled;
+use embedded_hal::blocking::spi::Write;
 
 #[entry]
 fn main() -> ! {
@@ -41,18 +44,18 @@ fn main() -> ! {
     let gpio = p.DIO.split();
 
     let spi_a0 = p.EUSCI_A0.into_spi()
+        .master_mode()
+        .lsb_first()
         .with_ports(gpio.p1_0.into_alternate_primary(),
                     gpio.p1_1.into_alternate_primary(),
                     gpio.p1_2.into_alternate_primary(),
                     gpio.p1_3.into_alternate_primary())
         .with_clock_source(spi::ClockSource::ACLK)
         .with_mode(MODE_1)
-        .master_mode()
-        .lsb_first()
+        .with_bit_rate_prescaler(0x15)
         .init();
 
     loop {
         watchdog.try_feed().unwrap();
-        // spi_a0.try_read().unwrap()
     }
 }
