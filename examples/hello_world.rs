@@ -10,12 +10,7 @@ use nb::block;
 use msp432p401r as pac;
 use msp432p401r_hal as hal;
 
-use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
-use hal::flash::{FlashExt, FlashWaitStates};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
-use hal::pcm::{PcmExt, VCoreSel};
-use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
+use hal::{clock::*, flash::*, gpio::*, pcm::*, timer::*, watchdog::*};
 
 #[entry]
 fn main() -> ! {
@@ -51,7 +46,7 @@ fn main() -> ! {
     let mut p1_0 = gpio.p1_0.into_output();
 
     let mut tim0 = p.TIMER_A0.constrain().set_clock(_clock);
-    let count = Count(4, TimerUnit::Seconds);
+    let count = Count(10, TimerUnit::Hertz);
     tim0.try_start(count).unwrap();
 
     loop {
