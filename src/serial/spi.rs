@@ -27,7 +27,7 @@ pub struct Enabled;
 macro_rules! spi {
     (
         $(($spix:ident,$ucx_ctlw0:ident, $ucx_brw:ident, $ucx_statw:ident, $ucx_rx:ident, $ucx_tx:ident, $ucx_ie:ident, $ucx_ifg:ident, $ucx_iv:ident): {
-            $($SPI_Xi:ident: [$EUSCI:ident],)+
+            $($SPI_Xi:ident: $EUSCI:ident,)+
         })+
     ) => {
         $(
@@ -143,15 +143,15 @@ macro_rules! spi {
 
 spi! {
     (spia, ucax_ctlw0, ucax_brw, ucax_statw, ucax_rxbuf, ucax_txbuf, ucax_ie, ucax_ifg, ucax_iv): {
-        SPI_A0: [EUSCI_A0],
-        SPI_A1: [EUSCI_A1],
-        SPI_A2: [EUSCI_A2],
-        SPI_A3: [EUSCI_A3],
+        SPI_A0: EUSCI_A0,
+        SPI_A1: EUSCI_A1,
+        SPI_A2: EUSCI_A2,
+        SPI_A3: EUSCI_A3,
     }
     (spib, ucbx_ctlw0, ucbx_brw, ucbx_statw, ucbx_rxbuf, ucbx_txbuf, ucbx_ie, ucbx_ifg, ucbx_iv): {
-        SPI_B0: [EUSCI_B0],
-        SPI_B1: [EUSCI_B1],
-        SPI_B2: [EUSCI_B2],
-        SPI_B3: [EUSCI_B3],
+        SPI_B0: EUSCI_B0,
+        SPI_B1: EUSCI_B1,
+        SPI_B2: EUSCI_B2,
+        SPI_B3: EUSCI_B3,
     }
 }
