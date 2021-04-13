@@ -27,7 +27,7 @@ pub struct Enabled;
 macro_rules! spi {
     (
         $(($spix:ident,$ucx_ctlw0:ident, $ucx_brw:ident, $ucx_statw:ident, $ucx_rx:ident, $ucx_tx:ident, $ucx_ie:ident, $ucx_ifg:ident, $ucx_iv:ident): {
-            $($SPI_Xi:ident: [$EUSCI:ident, $STE:ty, $CLK:ty, $MISO:ty, $MOSI:ty],)+
+            $($SPI_Xi:ident: [$EUSCI:ident],)+
         })+
     ) => {
         $(
@@ -40,10 +40,6 @@ macro_rules! spi {
                     pub struct $SPI_Xi<State> {
                         _state: State,
                         eusci: $EUSCI,
-                        ste: Option<$STE>,
-                        clk: Option<$CLK>,
-                        miso: Option<$MISO>,
-                        mosi: Option<$MOSI>,
                     }
 
                     impl<State> $SPI_Xi<State> {
@@ -54,10 +50,6 @@ macro_rules! spi {
                             $SPI_Xi {
                                 _state: Disabled,
                                 eusci: eusci,
-                                ste: None,
-                                clk: None,
-                                miso: None,
-                                mosi: None
                             }
                         }
                     }
@@ -65,10 +57,6 @@ macro_rules! spi {
                     impl $SPI_Xi<Enabled> {
                         pub fn disable(self) -> $SPI_Xi<Disabled> {
                             $SPI_Xi::<Disabled>::new(self.eusci)
-                        }
-                        // TODO: return ownership of Pins to the caller
-                        pub fn release(self) {
-
                         }
                     }
 
@@ -128,16 +116,6 @@ macro_rules! spi {
                             self
                         }
 
-                        pub fn with_ports(self, ste: $STE, clk: $CLK, miso: $MISO, mosi: $MOSI) -> Self {
-                            Self {
-                                ste: Some(ste),
-                                clk: Some(clk),
-                                miso: Some(miso),
-                                mosi: Some(mosi),
-                                ..self
-                            }
-                        }
-
                         pub fn init(self) -> $SPI_Xi<Enabled> {
                             self.eusci.$ucx_ctlw0.modify(|_, w| { w
                                 .ucsync().ucsync_1()
@@ -146,10 +124,6 @@ macro_rules! spi {
                             $SPI_Xi {
                                 _state: Enabled,
                                 eusci: self.eusci,
-                                ste: self.ste,
-                                clk: self.clk,
-                                miso: self.miso,
-                                mosi: self.mosi
                             }
                         }
                     }
@@ -169,15 +143,15 @@ macro_rules! spi {
 
 spi! {
     (spia, ucax_ctlw0, ucax_brw, ucax_statw, ucax_rxbuf, ucax_txbuf, ucax_ie, ucax_ifg, ucax_iv): {
-        SPI_A0: [EUSCI_A0, P1_0<Alternate<Primary>>, P1_1<Alternate<Primary>>, P1_2<Alternate<Primary>>, P1_3<Alternate<Primary>>],
-        SPI_A1: [EUSCI_A1, P2_0<Alternate<Primary>>, P2_1<Alternate<Primary>>, P2_2<Alternate<Primary>>, P2_3<Alternate<Primary>>],
-        SPI_A2: [EUSCI_A2, P3_0<Alternate<Primary>>, P3_1<Alternate<Primary>>, P3_2<Alternate<Primary>>, P3_3<Alternate<Primary>>],
-        SPI_A3: [EUSCI_A3, P9_4<Alternate<Primary>>, P9_5<Alternate<Primary>>, P9_6<Alternate<Primary>>, P9_7<Alternate<Primary>>],
+        SPI_A0: [EUSCI_A0],
+        SPI_A1: [EUSCI_A1],
+        SPI_A2: [EUSCI_A2],
+        SPI_A3: [EUSCI_A3],
     }
     (spib, ucbx_ctlw0, ucbx_brw, ucbx_statw, ucbx_rxbuf, ucbx_txbuf, ucbx_ie, ucbx_ifg, ucbx_iv): {
-        SPI_B0: [EUSCI_B0, P1_4<Alternate<Primary>>, P1_5<Alternate<Primary>>, P1_7<Alternate<Primary>>, P1_6<Alternate<Primary>>],
-        SPI_B1: [EUSCI_B1, P6_2<Alternate<Primary>>, P6_3<Alternate<Primary>>, P6_5<Alternate<Primary>>, P6_4<Alternate<Primary>>],
-        SPI_B2: [EUSCI_B2, P3_4<Alternate<Primary>>, P3_5<Alternate<Primary>>, P3_7<Alternate<Primary>>, P3_6<Alternate<Primary>>],
-        SPI_B3: [EUSCI_B3, P10_0<Alternate<Primary>>, P10_1<Alternate<Primary>>, P10_3<Alternate<Primary>>, P10_2<Alternate<Primary>>],
+        SPI_B0: [EUSCI_B0],
+        SPI_B1: [EUSCI_B1],
+        SPI_B2: [EUSCI_B2],
+        SPI_B3: [EUSCI_B3],
     }
 }

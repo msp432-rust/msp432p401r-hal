@@ -41,19 +41,21 @@ fn main() -> ! {
         .smclk_prescaler(SMPrescaler::DIVS_1)
         .freeze();
 
-    let gpio = p.DIO.split();
-
     let spi_a0 = p.EUSCI_A0.into_spi()
         .master_mode()
         .lsb_first()
-        .with_ports(gpio.p1_0.into_alternate_primary(),
-                    gpio.p1_1.into_alternate_primary(),
-                    gpio.p1_2.into_alternate_primary(),
-                    gpio.p1_3.into_alternate_primary())
         .with_clock_source(spi::ClockSource::ACLK)
         .with_mode(MODE_1)
-        .with_bit_rate_prescaler(0x15)
-        .init();
+        .with_bit_rate_prescaler(0x15);
+
+    let gpio = p.DIO.split();
+
+    gpio.p1_0.into_alternate_primary();
+    gpio.p1_1.into_alternate_primary();
+    gpio.p1_2.into_alternate_primary();
+    gpio.p1_3.into_alternate_primary();
+
+    spi_a0.init();
 
     loop {
         watchdog.try_feed().unwrap();
