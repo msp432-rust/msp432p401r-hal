@@ -1,5 +1,3 @@
-use core::marker::PhantomData;
-
 use pac::{EUSCI_A0, EUSCI_A1, EUSCI_A2, EUSCI_A3};
 use pac::{EUSCI_B0, EUSCI_B1, EUSCI_B2, EUSCI_B3};
 
