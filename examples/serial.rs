@@ -40,10 +40,6 @@ fn main() -> ! {
 
     let gpio = p.DIO.split();
 
-    p.EUSCI_A0.ucax_ctlw0.modify(|r, w| unsafe {
-        w.bits(r.bits()).bits(r.bits()).bits()
-    });
-
     let spi_a0 = p.EUSCI_A0.into_spi()
         .with_ports(gpio.p1_0.into_alternate_primary(),
                     gpio.p1_1.into_alternate_primary(),
@@ -57,6 +53,6 @@ fn main() -> ! {
 
     loop {
         watchdog.try_feed().unwrap();
-        spi_a0.try_read().unwrap()
+        // spi_a0.try_read().unwrap()
     }
 }
