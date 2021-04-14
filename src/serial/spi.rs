@@ -58,6 +58,15 @@ macro_rules! spi {
                         pub fn disable(self) -> $SPI_Xi<Disabled> {
                             $SPI_Xi::<Disabled>::new(self.eusci)
                         }
+
+                        // TODO: Implement embedded-hal traits for SPI (blocking and non-blocking)
+                        pub fn write(&self, data: u8) {
+                            self.eusci.$ucx_tx.write(|w| unsafe { w.bits(data as u16) });
+                        }
+
+                        pub fn read(&self) -> u8 {
+                            self.eusci.$ucx_rx.read().bits() as u8
+                        }
                     }
 
                     impl $SPI_Xi<Disabled> {
