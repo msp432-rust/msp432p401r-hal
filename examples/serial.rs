@@ -50,16 +50,16 @@ fn main() -> ! {
         .set_waitstates(FlashWaitStates::_2Ws)
         .freeze();
 
-    let _clock = p.CS.constrain()
+    let clock = p.CS.constrain()
         .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)
         .smclk_prescaler(SMPrescaler::DIVS_1)
         .freeze();
 
-    let mut tim0 = p.TIMER_A0.constrain()
-        .set_clock(_clock);
+    let mut tim0 = p.TIMER_A0.constrain().set_clock(clock);
 
     let gpio = p.DIO.split();
 
+    // Master SPI
     let eusci_a1 = p.EUSCI_A1.into_spi()
         .master_mode()
         .msb_first()
@@ -67,20 +67,19 @@ fn main() -> ! {
         .with_mode(MODE_0)
         .with_bit_rate_prescaler(0x02);
 
-    /// Setup eUSCI_A1 SPI PINs into proper alternate mode
+    // Setup eUSCI_A1 SPI PINs into proper alternate mode
     gpio.p2_0.into_alternate_primary();
     gpio.p2_1.into_alternate_primary();
     gpio.p2_2.into_alternate_primary();
     gpio.p2_3.into_alternate_primary();
 
+    // Slave SPI
     let eusci_a3 = p.EUSCI_A3.into_spi()
         .slave_mode()
         .msb_first()
-        // .with_clock_source(spi::ClockSource::ACLK)
         .with_mode(MODE_0);
-        // .with_bit_rate_prescaler(0x02);
 
-    /// Setup eUSCI_A3 SPI PINs into proper alternate mode
+    // Setup eUSCI_A3 SPI PINs into proper alternate mode
     gpio.p9_4.into_alternate_primary();
     gpio.p9_5.into_alternate_primary();
     gpio.p9_6.into_alternate_primary();
@@ -89,7 +88,7 @@ fn main() -> ! {
     let spi_a1 = eusci_a1.init();
     let spi_a3 = eusci_a3.init();
 
-    tim0.try_start(Count(2, TimerUnit::Seconds)).unwrap();
+    tim0.try_start(Count(1, TimerUnit::Seconds)).unwrap();
     let mut data: u8;
     let mut led = gpio.p1_0.into_output();
 
