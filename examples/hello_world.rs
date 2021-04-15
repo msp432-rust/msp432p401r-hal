@@ -31,8 +31,8 @@ fn main() -> ! {
     let _pcm_sel = pcm.get_powermode();                                      // Get the current powermode
 
     // Flash Control Config.
-    let _flctl = p.FLCTL.constrain()                                         // Setup Flash
-        .set_waitstates(FlashWaitStates::_2Ws)                               // Two wait states -> 48 Mhz Clock
+    let _flash_control = p.FLCTL.constrain()                                         // Setup Flash
+        .set_waitstates(FlashWaitStates::_2)                               // Two wait states -> 48 Mhz Clock
         .freeze();
 
     let _clock = p.CS.constrain()                                            // Setup CS
