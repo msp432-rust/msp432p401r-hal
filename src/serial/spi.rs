@@ -2,13 +2,6 @@ use pac::{EUSCI_A0, EUSCI_A1, EUSCI_A2, EUSCI_A3};
 use pac::{EUSCI_B0, EUSCI_B1, EUSCI_B2, EUSCI_B3};
 use pac::eusci_a0;
 
-use crate::gpio::{Alternate, Primary};
-use crate::gpio::porta::*;
-use crate::gpio::portb::*;
-use crate::gpio::portc::*;
-use crate::gpio::portd::*;
-use crate::gpio::porte::*;
-
 use super::SPI;
 
 pub enum ClockSource {
