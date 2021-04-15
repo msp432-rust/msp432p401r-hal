@@ -44,8 +44,8 @@ fn main() -> ! {
         .set_vcore(VCoreSel::DcdcVcore1)
         .freeze();
 
-    let _flash = p.FLCTL.constrain()
-        .set_waitstates(FlashWaitStates::_2Ws)
+    let _flash_control = p.FLCTL.constrain()
+        .set_waitstates(FlashWaitStates::_2)
         .freeze();
 
     let clock = p.CS.constrain()
@@ -53,7 +53,7 @@ fn main() -> ! {
         .smclk_prescaler(SMPrescaler::DIVS_1)
         .freeze();
 
-    let mut tim0 = p.TIMER_A0.constrain().set_clock(clock);
+    let mut timer = p.TIMER_A0.constrain().set_clock(clock);
 
     let gpio = p.DIO.split();
 
@@ -86,7 +86,7 @@ fn main() -> ! {
     let spi_a1 = eusci_a1.init();
     let spi_a3 = eusci_a3.init();
 
-    tim0.try_start(Count(1, TimerUnit::Seconds)).unwrap();
+    timer.try_start(Count(1, TimerUnit::Seconds)).unwrap();
     let mut led = gpio.p1_0.into_output();
 
     let tx: u8 = 0xCA;
@@ -100,6 +100,6 @@ fn main() -> ! {
         rx = spi_a3.read();
         hprintln!("Reading: {}", rx);
         assert_eq!(tx, rx);
-        block!(tim0.try_wait()).unwrap();
+        block!(timer.try_wait()).unwrap();
     }
 }
