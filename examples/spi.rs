@@ -15,11 +15,9 @@ MOSI:   P2_3  -> P9_7
 
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use embedded_hal::blocking::spi::Write;
-use embedded_hal::spi::{FullDuplex, MODE_0, MODE_3};
+use embedded_hal::spi::*;
 use msp432p401r as pac;
 use nb::block;
-use pac::TIMER_A0;
 use panic_halt as _;
 
 use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
@@ -89,15 +87,19 @@ fn main() -> ! {
     let spi_a3 = eusci_a3.init();
 
     tim0.try_start(Count(1, TimerUnit::Seconds)).unwrap();
-    let mut data: u8;
     let mut led = gpio.p1_0.into_output();
+
+    let tx: u8 = 0xCA;
+    let mut rx: u8;
 
     loop {
         watchdog.try_feed().unwrap();
         led.try_toggle().unwrap();
-        spi_a1.write(0xCA);
-        data = spi_a3.read();
-        hprintln!("Reading: {}", data);
+        hprintln!("Sending: {}", tx);
+        spi_a1.write(tx);
+        rx = spi_a3.read();
+        hprintln!("Reading: {}", rx);
+        assert_eq!(tx, rx);
         block!(tim0.try_wait()).unwrap();
     }
 }
