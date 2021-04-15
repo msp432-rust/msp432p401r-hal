@@ -81,8 +81,9 @@ impl<S> WatchdogTimer<S> where S: State {
         self.set_reg_mask(!WDT_CONTROL_HOLD, WDT_CONTROL_MASK);
     }
 
-    pub fn set_timer_interval(&self, interval: TimerInterval) {
+    pub fn set_timer_interval(&self, interval: TimerInterval) -> &Self {
         self.set_reg_mask(interval as u8,WDT_INTERVAL_MASK);
+        self
     }
 
     pub fn set_clock_source(&self, source: ClockSource) {
