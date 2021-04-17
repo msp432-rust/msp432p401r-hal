@@ -94,11 +94,11 @@ fn main() -> ! {
     loop {
         watchdog.try_feed().unwrap();
         led.try_toggle().unwrap();
+        // @TODO WHY RX[n] = TX[n-1]?
         hprintln!("Sending: {}", tx).unwrap();
         spi_a1.write(tx);
         rx = spi_a3.read();
         hprintln!("Reading: {}", rx).unwrap();
-        //assert_eq!(tx, rx);
         block!(timer.try_wait()).unwrap();
 
         if tx == 0xFF {

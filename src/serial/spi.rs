@@ -26,7 +26,7 @@ macro_rules! spi {
             pub mod $spix {
                 use super::*;
                 use hal::spi::*;
-                use hal::blocking::spi::*;
+                //use hal::blocking::spi::*;
 
                 $(
                     pub struct $SPI_Xi<State> {
@@ -113,7 +113,7 @@ macro_rules! spi {
                         }
 
                         pub fn with_bit_rate_prescaler(self, prescaler: u16) -> Self {
-                            self.eusci.$ucx_brw.modify(|r,w| unsafe { w.bits(prescaler) });
+                            self.eusci.$ucx_brw.modify(|_,w| unsafe { w.bits(prescaler) });
                             self
                         }
 
