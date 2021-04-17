@@ -91,21 +91,11 @@ fn main() -> ! {
     let mut tx: u8 = 0xCA;
     let mut rx: u8;
 
-    // First Data READ is cashed - @TODO
-    // Clear the data in SPI Module to read a new value
-    spi_a1.write(tx);
-    hprintln!("Sending: {}", tx).unwrap();
-    rx = spi_a3.read();
-    hprintln!("Reading: {}", rx).unwrap();
-    rx = spi_a3.read();
-    hprintln!("Reading: {}", rx).unwrap();
-
     loop {
         watchdog.try_feed().unwrap();
         led.try_toggle().unwrap();
         hprintln!("Sending: {}", tx).unwrap();
         spi_a1.write(tx);
-        rx = spi_a3.read(); // Clear SPI Buffer @TODO
         rx = spi_a3.read();
         hprintln!("Reading: {}", rx).unwrap();
         //assert_eq!(tx, rx);
