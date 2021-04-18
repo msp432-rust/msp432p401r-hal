@@ -11,7 +11,7 @@ Currently under development:
 - [X] TimerA
 - [X] Timer32
 - [X] PWM (TimerA)
-- [ ] Port MAP
+- [X] Port MAP
 - [ ] ADC
 - [ ] DMA
 - [ ] RTC

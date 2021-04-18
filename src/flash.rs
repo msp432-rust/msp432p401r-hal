@@ -1,6 +1,5 @@
 //! HAL library for Flash Control (FLCTL) - MSP432P401R
 use pac::FLCTL;
-use core::ops::Not;
 
 pub struct NotDefined;
 pub struct Defined;

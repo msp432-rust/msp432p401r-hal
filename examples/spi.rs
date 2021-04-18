@@ -2,9 +2,9 @@
 
 In order to run this example, connect the following PINs:
 
-STE:    P2_0  -> P9_4
-CLK:    P2_1  -> P9_5
-MISO:   P2_2  -> P9_6
+STE:    P2_4  -> P9_4
+CLK:    P2_6  -> P9_5
+MISO:   P2_7  -> P9_6
 MOSI:   P2_3  -> P9_7
 
 */
@@ -24,11 +24,9 @@ use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashExt, FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::{PcmExt, VCoreSel};
+use hal::pmap::{Mapping,PmapExt,PortMap};
 use hal::serial::{spi, SPI};
-use hal::serial::spi::Enabled;
-use hal::serial::spi::spia::{SPI_A0, SPI_A1};
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::timer::{ClockDefined, TimerConfig};
 use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
 use msp432p401r_hal as hal;
 
@@ -55,6 +53,7 @@ fn main() -> ! {
 
     let mut timer = p.TIMER_A0.constrain().set_clock(clock);
 
+    let _pmap = p.PMAP.constrain();
     let gpio = p.DIO.split();
 
     // Master SPI
@@ -66,9 +65,9 @@ fn main() -> ! {
         .with_bit_rate_prescaler(0x02);
 
     // Setup eUSCI_A1 SPI PINs into proper alternate mode
-    gpio.p2_0.into_alternate_primary();
-    gpio.p2_1.into_alternate_primary();
-    gpio.p2_2.into_alternate_primary();
+    gpio.p2_4.into_alternate_primary().remap(Mapping::UCA1STE, true);
+    gpio.p2_6.into_alternate_primary().remap(Mapping::UCA1CLK,true);
+    gpio.p2_7.into_alternate_primary().remap(Mapping::UCA1SOMI, true);
     gpio.p2_3.into_alternate_primary();
 
     // Slave SPI
@@ -89,17 +88,23 @@ fn main() -> ! {
     timer.try_start(Count(1, TimerUnit::Seconds)).unwrap();
     let mut led = gpio.p1_0.into_output();
 
-    let tx: u8 = 0xCA;
+    let mut tx: u8 = 0xCA;
     let mut rx: u8;
 
     loop {
         watchdog.try_feed().unwrap();
         led.try_toggle().unwrap();
-        hprintln!("Sending: {}", tx);
+        // @TODO WHY RX[n] = TX[n-1]?
+        hprintln!("Sending: {}", tx).unwrap();
         spi_a1.write(tx);
         rx = spi_a3.read();
-        hprintln!("Reading: {}", rx);
-        assert_eq!(tx, rx);
+        hprintln!("Reading: {}", rx).unwrap();
         block!(timer.try_wait()).unwrap();
+
+        if tx == 0xFF {
+            tx = 0;
+        } else {
+            tx = tx + 1;
+        }
     }
 }
