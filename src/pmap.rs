@@ -95,13 +95,13 @@ impl PmapControl {
 
     #[inline]
     fn key_lock(&mut self, lock: bool) -> &Self{
-        if lock == false {
+        if lock {
             self.map.as_ref().unwrap().pmapkeyid.write(|w| unsafe {
-                w.pmapkey().bits(UNLOCK_KEY)
+                w.pmapkey().bits(0)
             });
         } else {
             self.map.as_ref().unwrap().pmapkeyid.write(|w| unsafe {
-                w.pmapkey().bits(0)
+                w.pmapkey().bits(UNLOCK_KEY)
             });
         }
         self
