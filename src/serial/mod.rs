@@ -9,9 +9,11 @@ pub trait SPI {
 }
 
 pub trait I2C {
-    fn into_i2c(self) -> Self;
+    type Module;
+    fn into_i2c(self) -> Self::Module;
 }
 
 pub trait UART {
-    fn into_uart(self) -> Self;
+    type Module;
+    fn into_uart(self) -> Self::Module;
 }

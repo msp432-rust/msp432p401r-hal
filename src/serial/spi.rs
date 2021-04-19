@@ -8,13 +8,13 @@ pub enum ClockSource {
     SMCLK,
 }
 
-pub enum SpiError {
+pub enum Error {
     Unknown,
 }
 
-pub struct Disabled;
-
-pub struct Enabled;
+pub struct SPIBuilder<EUSCI> {
+    eusci: EUSCI
+}
 
 macro_rules! spi {
     (
@@ -26,29 +26,15 @@ macro_rules! spi {
             pub mod $spix {
                 use super::*;
                 use hal::spi::*;
-                //use hal::blocking::spi::*;
 
                 $(
-                    pub struct $SPI_Xi<State> {
-                        _state: State,
+                    pub struct $SPI_Xi {
                         eusci: $EUSCI,
                     }
 
-                    impl<State> $SPI_Xi<State> {
-                        fn new(eusci: $EUSCI) -> $SPI_Xi<Disabled> {
-                            eusci.$ucx_ctlw0.modify(|_, w| { w
-                                .ucswrst().ucswrst_1()
-                            });
-                            $SPI_Xi {
-                                _state: Disabled,
-                                eusci: eusci,
-                            }
-                        }
-                    }
-
-                    impl $SPI_Xi<Enabled> {
-                        pub fn disable(self) -> $SPI_Xi<Disabled> {
-                            $SPI_Xi::<Disabled>::new(self.eusci)
+                    impl $SPI_Xi {
+                        pub fn disable(self) -> SPIBuilder<$EUSCI> {
+                            SPIBuilder::<$EUSCI>::new(self.eusci)
                         }
 
                         // TODO: Implement embedded-hal traits for SPI (blocking and non-blocking)
@@ -61,7 +47,12 @@ macro_rules! spi {
                         }
                     }
 
-                    impl $SPI_Xi<Disabled> {
+                    impl SPIBuilder<$EUSCI> {
+                        fn new(eusci: $EUSCI) -> SPIBuilder<$EUSCI> {
+                            eusci.$ucx_ctlw0.modify(|_, w| { w.ucswrst().ucswrst_1() });
+                            SPIBuilder { eusci: eusci }
+                        }
+
                         pub fn with_clock_source(self, source: ClockSource) -> Self {
                             match source {
                                 ClockSource::ACLK => self.eusci.$ucx_ctlw0.modify(|_, w| w.ucssel().ucssel_1()),
@@ -117,23 +108,20 @@ macro_rules! spi {
                             self
                         }
 
-                        pub fn init(self) -> $SPI_Xi<Enabled> {
+                        pub fn init(self) -> $SPI_Xi {
                             self.eusci.$ucx_ctlw0.modify(|_, w| { w
                                 .ucsync().ucsync_1()
                                 .ucswrst().ucswrst_0()
                             });
-                            $SPI_Xi {
-                                _state: Enabled,
-                                eusci: self.eusci,
-                            }
+                            $SPI_Xi { eusci: self.eusci }
                         }
                     }
 
                     impl SPI for $EUSCI {
-                        type Module = $SPI_Xi<Disabled>;
+                        type Module = SPIBuilder<$EUSCI>;
 
-                        fn into_spi(self) -> $SPI_Xi<Disabled> {
-                            $SPI_Xi::<Disabled>::new(self)
+                        fn into_spi(self) -> SPIBuilder<$EUSCI> {
+                            SPIBuilder::<$EUSCI>::new(self)
                         }
                     }
                 )+
