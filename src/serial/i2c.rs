@@ -13,7 +13,7 @@ pub enum AddressMode {
     _10bits,
 }
 
-pub struct I2CBuilder<EUSCI> {
+pub struct I2cBuilder<EUSCI> {
     eusci: EUSCI
 }
 
@@ -24,10 +24,10 @@ macro_rules! i2c {
                 eusci: $EUSCI
             }
 
-            impl I2CBuilder<$EUSCI> {
+            impl I2cBuilder<$EUSCI> {
                 fn new(eusci: $EUSCI) -> Self {
                     eusci.ucbx_ctlw0.modify(|_, w| w.ucswrst().ucswrst_1().ucmode().ucmode_3());
-                    I2CBuilder { eusci }
+                    I2cBuilder { eusci }
                 }
 
                 pub fn own_addressing_mode(self, mode: AddressMode) -> Self {
@@ -94,16 +94,16 @@ macro_rules! i2c {
             }
 
             impl $I2C_Xi {
-                pub fn disable(self) -> I2CBuilder<$EUSCI> {
-                    I2CBuilder::<$EUSCI>::new(self.eusci)
+                pub fn disable(self) -> I2cBuilder<$EUSCI> {
+                    I2cBuilder::<$EUSCI>::new(self.eusci)
                 }
             }
 
             impl I2C for $EUSCI {
-                type Module = I2CBuilder<$EUSCI>;
+                type Module = I2cBuilder<$EUSCI>;
 
-                fn into_i2c(self) -> I2CBuilder<$EUSCI> {
-                    I2CBuilder::<$EUSCI>::new(self)
+                fn into_i2c(self) -> I2cBuilder<$EUSCI> {
+                    I2cBuilder::<$EUSCI>::new(self)
                 }
             }
         )+

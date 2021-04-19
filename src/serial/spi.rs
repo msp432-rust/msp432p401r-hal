@@ -12,7 +12,7 @@ pub enum Error {
     Unknown,
 }
 
-pub struct SPIBuilder<EUSCI> {
+pub struct SpiBuilder<EUSCI> {
     eusci: EUSCI
 }
 
@@ -33,8 +33,8 @@ macro_rules! spi {
                     }
 
                     impl $SPI_Xi {
-                        pub fn disable(self) -> SPIBuilder<$EUSCI> {
-                            SPIBuilder::<$EUSCI>::new(self.eusci)
+                        pub fn disable(self) -> SpiBuilder<$EUSCI> {
+                            SpiBuilder::<$EUSCI>::new(self.eusci)
                         }
 
                         // TODO: Implement embedded-hal traits for SPI (blocking and non-blocking)
@@ -47,10 +47,10 @@ macro_rules! spi {
                         }
                     }
 
-                    impl SPIBuilder<$EUSCI> {
-                        fn new(eusci: $EUSCI) -> SPIBuilder<$EUSCI> {
+                    impl SpiBuilder<$EUSCI> {
+                        fn new(eusci: $EUSCI) -> SpiBuilder<$EUSCI> {
                             eusci.$ucx_ctlw0.modify(|_, w| { w.ucswrst().ucswrst_1() });
-                            SPIBuilder { eusci: eusci }
+                            SpiBuilder { eusci: eusci }
                         }
 
                         pub fn with_clock_source(self, source: ClockSource) -> Self {
@@ -118,10 +118,10 @@ macro_rules! spi {
                     }
 
                     impl SPI for $EUSCI {
-                        type Module = SPIBuilder<$EUSCI>;
+                        type Module = SpiBuilder<$EUSCI>;
 
-                        fn into_spi(self) -> SPIBuilder<$EUSCI> {
-                            SPIBuilder::<$EUSCI>::new(self)
+                        fn into_spi(self) -> SpiBuilder<$EUSCI> {
+                            SpiBuilder::<$EUSCI>::new(self)
                         }
                     }
                 )+
