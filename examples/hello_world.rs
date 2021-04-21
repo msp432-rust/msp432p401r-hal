@@ -14,7 +14,7 @@ use hal::common::*;
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
-use hal::pcm::{PcmExt, VCoreSel};
+use hal::pcm::CoreVoltageSelection;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{TimerInterval, Watchdog};
 
@@ -24,17 +24,18 @@ fn main() -> ! {
     // Take the Peripherals
     let p = pac::Peripherals::take().unwrap();
 
-    // Watchdog Config.
-    let mut _watchdog = p.WDT_A.constrain();                                 // Setup WatchdogTimer
+    // Setup the Watchdog
+    let mut _watchdog = p.WDT_A.constrain()
+        .set_timer_interval(TimerInterval::At31)
+        .try_feed().unwrap();
 
-    _watchdog.set_timer_interval(TimerInterval::At31);
-    _watchdog.try_feed().unwrap();
-
-    // PCM Config.
-    let pcm = p.PCM.constrain()                                              // Setup PCM
-        .set_vcore(VCoreSel::DcdcVcore1)                                     // Set DCDC Vcore1 -> 48 MHz Clock
+    // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
+    let pcm = p.PCM.constrain()
+        .set_core_voltage(CoreVoltageSelection::DcDc)
         .freeze();
-    let _pcm_sel = pcm.get_powermode();                                      // Get the current powermode
+
+    // Get the current Power Mode
+    let _pcm_sel = pcm.get_power_mode();
 
     // Flash Control Config.
     let _flash_control = p.FLCTL.constrain()                                         // Setup Flash
