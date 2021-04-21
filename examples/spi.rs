@@ -24,7 +24,7 @@ use panic_halt as _;
 use hal::common::*;
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
+use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
 use hal::pmap::{Mapping,PmapExt,PortMap};
 use hal::serial::{spi, SPI};
@@ -44,7 +44,7 @@ fn main() -> ! {
         .try_start(Options(ClockSource::SMCLK,TimerInterval::At31)).unwrap();
 
     // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
-    let pcm = p.PCM.constrain()
+    let _pcm = p.PCM.constrain()
         .set_core_voltage(CoreVoltageSelection::DcDc)
         .freeze();
 

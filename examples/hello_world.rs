@@ -13,7 +13,7 @@ use msp432p401r_hal as hal;
 use hal::common::*;
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
+use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};

@@ -1,5 +1,5 @@
 use core::marker::PhantomData;
-
+use crate::common::*;
 pub use hal::digital::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
 
 pub struct Input<MODE> {
@@ -43,15 +43,6 @@ pub struct Tertiary;
 pub enum Edge {
   Rising,
   Falling,
-}
-
-/// Extension trait to split a GPIO peripheral in independent pins and registers
-pub trait GpioExt {
-    /// The to split the GPIO into
-    type Parts;
-
-    /// Splits the GPIO block into independent pins and registers
-    fn split(self) -> Self::Parts;
 }
 
 macro_rules! gpio {
@@ -299,7 +290,7 @@ macro_rules! gpio {
             )+)+)+
         }
 
-        impl GpioExt for $DIO {
+        impl Split for $DIO {
             type Parts = Parts;
 
             fn split(self) -> Parts {
