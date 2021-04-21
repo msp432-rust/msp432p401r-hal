@@ -16,7 +16,7 @@ use hal::flash::{FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::CoreVoltageSelection;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog};
+use hal::watchdog::{TimerInterval, Watchdog, Enable, Disable};
 
 #[entry]
 fn main() -> ! {
@@ -26,7 +26,8 @@ fn main() -> ! {
 
     // Setup the Watchdog
     let mut _watchdog = p.WDT_A.constrain()
-        .set_timer_interval(TimerInterval::At31)
+        .try_disable().unwrap()
+        .try_start(TimerInterval::At31).unwrap()
         .try_feed().unwrap();
 
     // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
