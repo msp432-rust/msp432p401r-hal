@@ -26,7 +26,7 @@ use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
-use hal::pmap::{Mapping,PmapExt,PortMap};
+use hal::pmap::{Mapping, PortMap};
 use hal::serial::{spi, SPI};
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
@@ -61,7 +61,7 @@ fn main() -> ! {
 
     let mut timer = p.TIMER_A0.constrain().set_clock(clock);
 
-    let _pmap = p.PMAP.constrain();
+    let pmap = p.PMAP.constrain();
     let gpio = p.DIO.split();
 
     // Master SPI
@@ -73,9 +73,9 @@ fn main() -> ! {
         .with_bit_rate_prescaler(0x02);
 
     // Setup eUSCI_A1 SPI PINs into proper alternate mode
-    gpio.p2_4.into_alternate_primary().remap(Mapping::UCA1STE, true);
-    gpio.p2_6.into_alternate_primary().remap(Mapping::UCA1CLK,true);
-    gpio.p2_7.into_alternate_primary().remap(Mapping::UCA1SOMI, true);
+    gpio.p2_4.into_alternate_primary().remap(&pmap, Mapping::UCA1STE, true);
+    gpio.p2_6.into_alternate_primary().remap(&pmap, Mapping::UCA1CLK,true);
+    gpio.p2_7.into_alternate_primary().remap(&pmap,Mapping::UCA1SOMI, true);
     gpio.p2_3.into_alternate_primary();
 
     // Slave SPI
