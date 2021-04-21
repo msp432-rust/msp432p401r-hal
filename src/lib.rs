@@ -4,6 +4,7 @@
 extern crate embedded_hal as hal;
 extern crate msp432p401r as pac;
 
+pub mod common;
 pub mod clock;
 pub mod flash;
 pub mod gpio;

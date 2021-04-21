@@ -1,14 +1,8 @@
 //! HAL library for Flash Control (FLCTL) - MSP432P401R
 use pac::FLCTL;
+use crate::common::*;
 
-pub struct NotDefined;
-pub struct Defined;
-
-pub trait FlashExt {
-    fn constrain(self) -> FlashControl<NotDefined>;
-}
-
-impl FlashExt for FLCTL {
+impl Constrain<FlashControl<NotDefined>> for FLCTL {
     fn constrain(self) -> FlashControl<NotDefined> {
         FlashControl::<NotDefined>::new(self)
     }
