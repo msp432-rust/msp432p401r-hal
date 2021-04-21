@@ -48,12 +48,6 @@ fn main() -> ! {
         .set_core_voltage(CoreVoltageSelection::DcDc)
         .freeze();
 
-    // Get the current Power Mode
-    let _power = pcm.get_power_mode();
-
-    // Get the current Core Voltage
-    let _voltage = pcm.get_core_voltage();
-
     // Setup Flash Control - Two wait states for 48 MHz.
     let _flash_control = p.FLCTL.constrain()
         .set_waitstates(FlashWaitStates::_2)
