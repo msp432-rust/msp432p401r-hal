@@ -52,7 +52,7 @@ BCLK is restricted to a maximum frequency of 32.768 kHz
 
 use cortex_m::interrupt;
 
-use crate::common::*;
+use crate::common::{Constrain, NotDefined};
 use crate::time::Hertz;
 use pac::cs::csctl0::DCORSEL_A;
 use pac::cs::csctl2::HFXTFREQ_A;

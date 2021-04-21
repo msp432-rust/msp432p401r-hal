@@ -1,6 +1,6 @@
 //! HAL library for Flash Control (FLCTL) - MSP432P401R
 use pac::FLCTL;
-use crate::common::*;
+use crate::common::{Constrain, NotDefined, Defined};
 
 impl Constrain<FlashControl<NotDefined>> for FLCTL {
     fn constrain(self) -> FlashControl<NotDefined> {

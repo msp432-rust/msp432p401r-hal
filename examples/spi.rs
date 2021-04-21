@@ -21,7 +21,7 @@ use msp432p401r_hal as hal;
 use nb::block;
 use panic_halt as _;
 
-use hal::common::*;
+use hal::common::{Constrain, Split};
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::ToggleableOutputPin;

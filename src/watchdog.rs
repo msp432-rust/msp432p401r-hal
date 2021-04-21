@@ -1,7 +1,7 @@
 //! HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
 
 use core::convert::Infallible;
-use crate::common::*;
+use crate::common::Constrain;
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 

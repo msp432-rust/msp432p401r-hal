@@ -12,7 +12,7 @@ use nb::block;
 use msp432p401r as pac;
 use msp432p401r_hal as hal;
 
-use hal::common::*;
+use hal::common::{Constrain, Split};
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::{ToggleableOutputPin, OutputPin};

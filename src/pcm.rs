@@ -2,7 +2,7 @@
 use pac::PCM;
 use pac::pcm::pcmctl0::{AMR_A, CPM_A};
 use cortex_m::{asm::delay, interrupt};
-use crate::common::*;
+use crate::common::{Constrain, NotDefined, Defined};
 use CoreVoltageSelection::*;
 use PowerMode::*;
 

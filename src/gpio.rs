@@ -1,5 +1,5 @@
 use core::marker::PhantomData;
-use crate::common::*;
+use crate::common::Split;
 pub use hal::digital::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
 
 pub struct Input<MODE> {
