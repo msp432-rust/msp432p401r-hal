@@ -52,6 +52,7 @@ BCLK is restricted to a maximum frequency of 32.768 kHz
 
 use cortex_m::interrupt;
 
+use crate::common::*;
 use crate::time::Hertz;
 use pac::cs::csctl0::DCORSEL_A;
 use pac::cs::csctl2::HFXTFREQ_A;
@@ -59,21 +60,13 @@ pub use pac::cs::csctl1::{SELS_A, SELA_A, SELM_A, DIVM_A as MPrescaler, DIVS_A a
 use pac::cs::csclken::REFOFSEL_A;
 use pac::CS;
 
-pub trait CsExt {
-    fn constrain(self) -> ClockConfig<NoClockDefined, NoClockDefined>;
-}
-
-impl CsExt for CS {
-    fn constrain(self) -> ClockConfig<NoClockDefined, NoClockDefined> {
-        ClockConfig::new(self)
+impl Constrain<ClockControl<NotDefined, NotDefined>> for CS {
+    fn constrain(self) -> ClockControl<NotDefined, NotDefined> {
+        ClockControl::<NotDefined, NotDefined>::new(self)
     }
 }
 
-/// Typestates for `ClockConfig`
-pub struct NoClockDefined;
-
 pub struct MclkDefined(MasterClock);
-
 pub struct SmclkDefined(SMPrescaler);
 
 pub const MODCLK: u32 = 25_000_000;
@@ -284,7 +277,7 @@ impl SmclkState for SmclkDefined {
 /// Builder object that configures system clocks
 /// Can only commit configurations to hardware if both MCLK (HSMCLK) and SMCLK settings have been
 /// configured. ACLK and BCLK configurations are optional, with its default source being REFOCLK.
-pub struct ClockConfig<MCLK, SMCLK> {
+pub struct ClockControl<MCLK, SMCLK> {
     cs: CS,
     mclk: MCLK,
     mclk_div: MPrescaler,
@@ -295,7 +288,7 @@ pub struct ClockConfig<MCLK, SMCLK> {
 
 macro_rules! make_clkconf {
     ($conf:expr, $mclk:expr, $smclk:expr) => {
-        ClockConfig {
+        ClockControl {
             cs: $conf.cs,
             mclk: $mclk,
             mclk_div: $conf.mclk_div,
@@ -306,13 +299,13 @@ macro_rules! make_clkconf {
     };
 }
 
-impl ClockConfig<NoClockDefined, NoClockDefined> {
+impl ClockControl<NotDefined, NotDefined> {
     /// Converts CS into a fresh, unconfigured clock builder object
     fn new(cs: CS) -> Self {
-        ClockConfig {
+        ClockControl {
             cs,
-            smclk: NoClockDefined,
-            mclk: NoClockDefined,
+            smclk: NotDefined,
+            mclk: NotDefined,
             mclk_div: MPrescaler::DIVM_0,
             aclk_sel: AclkSel::Refoclk(REFOFrequency::_32kHz),
             smclk_sel: HSMclkSel::Dcoclk(DCOFrequency::_3MHz),
@@ -320,7 +313,7 @@ impl ClockConfig<NoClockDefined, NoClockDefined> {
     }
 }
 
-impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
+impl<MCLK, SMCLK> ClockControl<MCLK, SMCLK> {
     pub fn aclk_lfcrystalsource_selection(mut self) -> Self {
         self.aclk_sel = AclkSel::Lfxtclk;
         self
@@ -337,10 +330,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select REFOCLK for MCLK and set the MCLK divider. Frequency is `REFOCLK / mclk_div` Hz.
-    pub fn mclk_refosource_selection(self, target_freq: REFOFrequency, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_refosource_selection(self, target_freq: REFOFrequency, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Refoclk(target_freq);
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::REFOCLK(target_freq)), self.smclk)
@@ -348,10 +341,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select LFXTCLK for MCLK and set the MCLK divider. Frequency is `LFXTCLK / mclk_div` Hz.
-    pub fn mclk_lfcrystalsource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_lfcrystalsource_selection(self, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Lfxtclk;
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::LFXTCLK), self.smclk)
@@ -359,10 +352,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select MODCLK for MCLK and set the MCLK divider. Frequency is `MODCLK / mclk_div` Hz.
-    pub fn mclk_modsource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_modsource_selection(self, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Modclk;
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::MODCLK), self.smclk)
@@ -370,10 +363,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select VLOCLK for MCLK and set the MCLK divider. Frequency is `VLO / mclk_div` Hz.
-    pub fn mclk_vlosource_selection(self, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_vlosource_selection(self, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Vloclk;
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::VLOCLK), self.smclk)
@@ -381,10 +374,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select HFXTCLK for MCLK and set the MCLK divider. Frequency is `HFXTCLK / mclk_div` Hz.
-    pub fn mclk_hfcrystalsource_selection(self, target_freq: HighFrequencyCrystal, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_hfcrystalsource_selection(self, target_freq: HighFrequencyCrystal, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Hfxtclk(target_freq);
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::HFXTCLK(target_freq)), self.smclk)
@@ -392,10 +385,10 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Select DCOCLK for MCLK with FLL for stabilization. Frequency is `target_freq / mclk_div` Hz.
-    pub fn mclk_dcosource_selection(self, target_freq: DCOFrequency, mclk_div: MPrescaler) -> ClockConfig<MclkDefined, SMCLK> {
+    pub fn mclk_dcosource_selection(self, target_freq: DCOFrequency, mclk_div: MPrescaler) -> ClockControl<MclkDefined, SMCLK> {
         let smclk_sel = HSMclkSel::Dcoclk(target_freq);
 
-        ClockConfig {
+        ClockControl {
             mclk_div,
             smclk_sel,
             ..make_clkconf!(self, MclkDefined(MasterClock::DCOCLK(target_freq)), self.smclk)
@@ -403,12 +396,12 @@ impl<MCLK, SMCLK> ClockConfig<MCLK, SMCLK> {
     }
 
     /// Enable SMCLK and set SMCLK divider, which divides the MCLK frequency
-    pub fn smclk_prescaler(self, div: SMPrescaler) -> ClockConfig<MCLK, SmclkDefined> {
+    pub fn smclk_prescaler(self, div: SMPrescaler) -> ClockControl<MCLK, SmclkDefined> {
         make_clkconf!(self, self.mclk, SmclkDefined(div))
     }
 }
 
-impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
+impl<SMCLK: SmclkState> ClockControl<MclkDefined, SMCLK> {
     fn configure_dco_fll(&self) {
         if let MasterClock::DCOCLK(target_freq) = self.mclk.0 {
             self.cs.csctl0.write(|w| { w.dcorsel().variant(target_freq.frequecy_range()) });
@@ -499,7 +492,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
     }
 }
 
-impl ClockConfig<MclkDefined, SmclkDefined> {
+impl ClockControl<MclkDefined, SmclkDefined> {
     /// Apply clock configuration to hardware and return clock objects
     pub fn freeze(self) -> Clocks {
         interrupt::free(|_| {
