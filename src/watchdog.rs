@@ -40,7 +40,7 @@ pub enum TimerInterval {
     At6 = 0x0007,
 }
 
-pub struct Options(ClockSource, TimerInterval);
+pub struct Options(pub ClockSource, pub TimerInterval);
 
 pub trait State {}
 
@@ -77,12 +77,12 @@ impl<S> WatchdogTimer<S> where S: State {
         self.set_reg_mask(!WDT_CONTROL_HOLD, WDT_CONTROL_MASK);
     }
 
-    pub fn set_timer_interval(&self, interval: TimerInterval) -> &Self {
+    fn set_timer_interval(&self, interval: TimerInterval) -> &Self {
         self.set_reg_mask(interval as u8,WDT_INTERVAL_MASK);
         self
     }
 
-    pub fn set_clock_source(&self, source: ClockSource) {
+    fn set_clock_source(&self, source: ClockSource) {
         self.set_reg_mask(source as u8, WDT_SOURCE_MASK);
     }
 

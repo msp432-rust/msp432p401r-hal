@@ -12,8 +12,15 @@ use nb::block;
 use msp432p401r as pac;
 use msp432p401r_hal as hal;
 
+use hal::common::*;
+use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
+use hal::flash::{FlashWaitStates};
+use hal::gpio::{GpioExt, ToggleableOutputPin, OutputPin};
+use hal::pcm::CoreVoltageSelection;
+use hal::timer::*;
+use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
+use pac::Peripherals;
 use pac::interrupt;
-use hal::{clock::*, flash::*, gpio::*, pcm::*, timer::*, watchdog::*};
 use irq::{scoped_interrupts, handler, scope};
 
 static TIM32P: Mutex<RefCell<Option<Timer32Config<ChannelNotDefined, ClockDefined>>>> = Mutex::new(RefCell::new(None));
@@ -22,27 +29,27 @@ static TIM32P: Mutex<RefCell<Option<Timer32Config<ChannelNotDefined, ClockDefine
 fn main() -> ! {
 
     // Take the Peripherals
-    let p = pac::Peripherals::take().unwrap();
+    let p: Peripherals = Peripherals::take().unwrap();
 
-    // Watchdog Config.
-    let mut _watchdog = p.WDT_A.constrain();                                 // Setup WatchdogTimer
+    // Setup the Watchdog - Disable the WDT to configure some parameters.
+    let mut watchdog = p.WDT_A.constrain()
+        .try_disable().unwrap()
+        .try_start(Options(ClockSource::SMCLK,TimerInterval::At31)).unwrap();
 
-    _watchdog.set_timer_interval(TimerInterval::At27);
-    _watchdog.try_feed().unwrap();
-
-    // PCM Config.
-    let _pcm = p.PCM.constrain()                                              // Setup PCM
-        .set_vcore(VCoreSel::DcdcVcore1)                                     // Set DCDC Vcore1 -> 48 MHz Clock
+    // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
+    let _pcm = p.PCM.constrain()
+        .set_core_voltage(CoreVoltageSelection::DcDc)
         .freeze();
 
-    // Flash Control Config.
-    let _flash_control = p.FLCTL.constrain()                                         // Setup Flash
-        .set_waitstates(FlashWaitStates::_2)                               // Two wait states -> 48 Mhz Clock
+    // Setup Flash Control - Two wait states for 48 MHz.
+    let _flash_control = p.FLCTL.constrain()
+        .set_waitstates(FlashWaitStates::_2)
         .freeze();
 
-    let _clock = p.CS.constrain()                                            // Setup CS
-        .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)  // 48 MHz DCO
-        .smclk_prescaler(SMPrescaler::DIVS_1)                                // 24 MHz SMCLK
+    // Setup the Clock Source - MCLK: 48 MHz DCO | SMCLK: 24 MHz
+    let _clock = p.CS.constrain()
+        .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)
+        .smclk_prescaler(SMPrescaler::DIVS_1)
         .freeze();
 
     hprintln!("TIMER 32 Example").unwrap();
@@ -147,7 +154,7 @@ fn main() -> ! {
         scope.register(Interrupts::T32_INT2_IRQ, int32_1);
 
         loop {
-            _watchdog.try_feed().unwrap();
+            watchdog.try_feed().unwrap();
             p1_0.try_toggle().unwrap();
             block!({
                 cortex_m::interrupt::free(|cs| {
@@ -159,7 +166,7 @@ fn main() -> ! {
     });
 
     loop {
-        _watchdog.try_feed().unwrap();
+        watchdog.try_feed().unwrap();
         continue;
     }
 }

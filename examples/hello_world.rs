@@ -16,19 +16,19 @@ use hal::flash::{FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::CoreVoltageSelection;
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog, Enable, Disable};
+use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
+use pac::Peripherals;
 
 #[entry]
 fn main() -> ! {
 
     // Take the Peripherals
-    let p = pac::Peripherals::take().unwrap();
+    let p: Peripherals = Peripherals::take().unwrap();
 
-    // Setup the Watchdog
-    let mut _watchdog = p.WDT_A.constrain()
+    // Setup the Watchdog - Disable the WDT to configure some parameters.
+    let mut watchdog = p.WDT_A.constrain()
         .try_disable().unwrap()
-        .try_start(TimerInterval::At31).unwrap()
-        .try_feed().unwrap();
+        .try_start(Options(ClockSource::SMCLK,TimerInterval::At31)).unwrap();
 
     // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
     let pcm = p.PCM.constrain()
@@ -36,19 +36,25 @@ fn main() -> ! {
         .freeze();
 
     // Get the current Power Mode
-    let _pcm_sel = pcm.get_power_mode();
+    let _power = pcm.get_power_mode();
 
-    // Flash Control Config.
-    let _flash_control = p.FLCTL.constrain()                                         // Setup Flash
-        .set_waitstates(FlashWaitStates::_2)                               // Two wait states -> 48 Mhz Clock
+    // Get the current Core Voltage
+    let _voltage = pcm.get_core_voltage();
+
+    // Setup Flash Control - Two wait states for 48 MHz.
+    let _flash_control = p.FLCTL.constrain()
+        .set_waitstates(FlashWaitStates::_2)
         .freeze();
 
-    let _clock = p.CS.constrain()                                            // Setup CS
-        .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)  // 48 MHz DCO
-        .smclk_prescaler(SMPrescaler::DIVS_1)                                // 24 MHz SMCLK
+    // Setup the Clock Source - MCLK: 48 MHz DCO | SMCLK: 24 MHz
+    let _clock = p.CS.constrain()
+        .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)
+        .smclk_prescaler(SMPrescaler::DIVS_1)
         .freeze();
 
-    hprintln!("Hello World Example - PCM: {}", _pcm_sel as u32).unwrap();
+    hprintln!("Hello World Example").unwrap();
+    hprintln!("Power Mode: {:?}", _power).unwrap();
+    hprintln!("Core Voltage: {:?}", _voltage).unwrap();
 
     let gpio = p.DIO.split();
     let mut p1_0 = gpio.p1_0.into_output();
@@ -58,7 +64,7 @@ fn main() -> ! {
     tim0.try_start(count).unwrap();
 
     loop {
-        _watchdog.try_feed().unwrap();
+        watchdog.try_feed().unwrap();
         p1_0.try_toggle().unwrap();
         block!(tim0.try_wait()).unwrap();
     }
