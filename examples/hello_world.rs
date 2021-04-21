@@ -16,7 +16,7 @@ use hal::flash::{FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::{PcmExt, VCoreSel};
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
+use hal::watchdog::{TimerInterval, Watchdog};
 
 #[entry]
 fn main() -> ! {

@@ -1,7 +1,7 @@
 //! HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
 
 use core::convert::Infallible;
-
+use crate::common::*;
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
@@ -52,11 +52,7 @@ impl State for Enabled {}
 
 impl State for Disabled {}
 
-pub trait WDTExt {
-    fn constrain(self) -> WatchdogTimer<Enabled>;
-}
-
-impl WDTExt for WDT_A {
+impl Constrain<WatchdogTimer<Enabled>> for WDT_A {
     fn constrain(self) -> WatchdogTimer<Enabled> {
         WatchdogTimer::<Enabled>::new(self)
     }
