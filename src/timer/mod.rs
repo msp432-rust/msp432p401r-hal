@@ -4,13 +4,6 @@ pub mod timer32;
 pub use timer32::*;
 pub use timer16::*;
 
-pub trait State {}
-pub struct ClockNotDefined;
-pub struct ClockDefined;
-
-impl State for ClockNotDefined {}
-impl State for ClockDefined {}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
     Disabled,

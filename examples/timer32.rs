@@ -12,7 +12,7 @@ use nb::block;
 use msp432p401r as pac;
 use msp432p401r_hal as hal;
 
-use hal::common::{Constrain, Split};
+use hal::common::{Constrain, Split, NotDefined, Defined};
 use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::{ToggleableOutputPin, OutputPin};
@@ -23,7 +23,7 @@ use pac::Peripherals;
 use pac::interrupt;
 use irq::{scoped_interrupts, handler, scope};
 
-static TIM32P: Mutex<RefCell<Option<Timer32Config<ChannelNotDefined, ClockDefined>>>> = Mutex::new(RefCell::new(None));
+static TIM32P: Mutex<RefCell<Option<Timer32Config<NotDefined, Defined>>>> = Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {

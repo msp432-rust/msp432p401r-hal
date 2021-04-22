@@ -15,7 +15,7 @@ use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
-use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
+use hal::timer::{Count, CountDown, TimerUnit};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
 use pac::Peripherals;
 

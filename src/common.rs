@@ -3,6 +3,8 @@
 pub struct NotDefined;
 pub struct Defined;
 
+unsafe impl Send for NotDefined {}
+
 pub trait Constrain<T> {
     fn constrain(self) -> T;
 }

@@ -28,7 +28,7 @@ use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
 use hal::pmap::{Mapping, PortMap};
 use hal::serial::{spi, SPI};
-use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
+use hal::timer::{Count, CountDown, TimerUnit};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
 use pac::Peripherals;
 

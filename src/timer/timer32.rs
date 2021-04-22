@@ -1,5 +1,6 @@
 //! HAL library for Timer module (Timer32) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
+use crate::common::{Constrain, NotDefined, Defined};
 
 use pac::TIMER32;
 use core::marker::PhantomData;
@@ -11,11 +12,6 @@ use crate::timer::*;
 
 const MAX_PRESCALER32: u32 = 0x0100;
 
-unsafe impl Send for ChannelNotDefined {}
-
-pub struct ChannelNotDefined {
-    _marker: PhantomData<*const ()>,
-}
 pub struct Channel0 {
     _marker: PhantomData<*const ()>,
 }
@@ -47,30 +43,22 @@ enum ClockSourcePrescaler32 {
     _256 = 256,
 }
 
-pub struct Timer32Config<C, S: State> {
+pub struct Timer32Config<C, State> {
     clocks: Clocks,
     tim: TIMER32,
-    _state: S,
+    _state: State,
     channel: PhantomData<C>,
 }
 
-pub trait Timer32Ext {
-    type Output;
-    fn constrain(self) -> Self::Output;
-}
-
-impl Timer32Ext for TIMER32 {
-
-    type Output = Timer32Config <ChannelNotDefined, ClockNotDefined>;
-
-    fn constrain(self) -> Self::Output {
-        Timer32Config::<ChannelNotDefined,ClockNotDefined>::tim32(self)
+impl Constrain<Timer32Config <NotDefined, NotDefined>> for TIMER32 {
+    fn constrain(self) -> Timer32Config <NotDefined, NotDefined> {
+        Timer32Config::<NotDefined,NotDefined>::tim32(self)
     }
 }
 
-impl Timer32Config <ChannelNotDefined, ClockNotDefined> {
+impl Timer32Config <NotDefined, NotDefined> {
 
-    fn tim32(timer: TIMER32 ) -> Timer32Config <ChannelNotDefined, ClockNotDefined> {
+    fn tim32(timer: TIMER32 ) -> Timer32Config <NotDefined, NotDefined> {
 
         let hz: Hertz = Hertz(0);
         let clock: Clocks = Clocks{aclk: hz, mclk: hz, hsmclk: hz, smclk: hz, bclk: hz };
@@ -78,31 +66,31 @@ impl Timer32Config <ChannelNotDefined, ClockNotDefined> {
         Timer32Config {
             clocks: clock,
             tim: timer,
-            _state: ClockNotDefined,
+            _state: NotDefined,
             channel: PhantomData,
         }
     }
 
-    pub fn set_clock(self, clock: Clocks) -> Timer32Config <ChannelNotDefined, ClockDefined> {
+    pub fn set_clock(self, clock: Clocks) -> Timer32Config <NotDefined, Defined> {
         Timer32Config {
             clocks: clock,
             tim: self.tim,
-            _state: ClockDefined,
+            _state: Defined,
             channel: PhantomData,
         }
     }
 }
 
-impl <C>Timer32Config <C, ClockDefined> {
-    pub fn channel0(&mut self) -> &mut Timer32Config::<Channel0, ClockDefined> {
+impl <C>Timer32Config <C, Defined> {
+    pub fn channel0(&mut self) -> &mut Timer32Config::<Channel0, Defined> {
         unsafe {
-            transmute::<&mut Self, &mut Timer32Config <Channel0, ClockDefined>>(self)
+            transmute::<&mut Self, &mut Timer32Config <Channel0, Defined>>(self)
         }
     }
 
-    pub fn channel1(&mut self) -> &mut Timer32Config::<Channel1, ClockDefined> {
+    pub fn channel1(&mut self) -> &mut Timer32Config::<Channel1, Defined> {
         unsafe {
-            transmute::<&mut Self, &mut Timer32Config <Channel1, ClockDefined>>(self)
+            transmute::<&mut Self, &mut Timer32Config <Channel1, Defined>>(self)
         }
     }
 }
@@ -111,7 +99,7 @@ macro_rules! timer32 {
     ($($Channeli:ident, $t32controli:ident, $t32intclri:ident, $t32misi:ident, $t32loadi:ident, $t32risi:ident, $t32valuei:ident),*) => {
         $(
 
-            impl Timer32Config <$Channeli, ClockDefined> {
+            impl Timer32Config <$Channeli, Defined> {
 
                 #[inline]
                 pub fn update_clock(&mut self, clocks: Clocks) -> &mut Self {
@@ -282,7 +270,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl CountDown for Timer32Config <$Channeli, ClockDefined>{
+            impl CountDown for Timer32Config <$Channeli, Defined>{
                 type Error = Error;
                 type Time = Count;
 
@@ -312,7 +300,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl Cancel for Timer32Config <$Channeli, ClockDefined> {
+            impl Cancel for Timer32Config <$Channeli, Defined> {
                 fn try_cancel(&mut self) -> Result<(), Self::Error> {
                     if(self.timer_running()) {
                         self.stop_timer();
@@ -323,9 +311,9 @@ macro_rules! timer32 {
                 }
             }
 
-            impl Periodic for Timer32Config <$Channeli, ClockDefined> {}
+            impl Periodic for Timer32Config <$Channeli, Defined> {}
 
-            impl OneShot for Timer32Config <$Channeli, ClockDefined> {
+            impl OneShot for Timer32Config <$Channeli, Defined> {
 
                 type Error = Error;
                 type Time = Count;
@@ -346,7 +334,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl FreeRunning for Timer32Config <$Channeli, ClockDefined> {
+            impl FreeRunning for Timer32Config <$Channeli, Defined> {
 
                 type Error = Error;
 
