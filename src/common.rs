@@ -9,7 +9,7 @@ pub trait Constrain<T> {
     fn constrain(self) -> T;
 }
 
-pub trait Split {
+pub trait Split<'a> {
     type Parts;
     fn split(self) -> Self::Parts;
 }

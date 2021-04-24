@@ -1,14 +1,16 @@
 //! HAL library for Timer module (Timer32) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-use crate::common::{Constrain, NotDefined, Defined};
+use crate::common::{Split, NotDefined, Defined};
 
 use pac::TIMER32;
 use core::marker::PhantomData;
-use core::mem::transmute;
 
 use crate::clock::Clocks;
 use crate::time::Hertz;
 use crate::timer::*;
+
+unsafe impl Send for Channel0 {}
+unsafe impl Send for Channel1 {}
 
 const MAX_PRESCALER32: u32 = 0x0100;
 
@@ -20,19 +22,15 @@ pub struct Channel1 {
 }
 
 pub trait OneShot {
-
     type Error;
     type Time;
-
     fn try_start_oneshot<T>(&mut self, count: T) -> Result<(), Self::Error>
         where
             T: Into<Self::Time>;
 }
 
 pub trait FreeRunning {
-
     type Error;
-
     fn try_start_freerunning(&mut self) -> Result<(), Self::Error>;
 }
 
@@ -43,54 +41,66 @@ enum ClockSourcePrescaler32 {
     _256 = 256,
 }
 
-pub struct Timer32Config<C, State> {
+pub struct Timer32Control<'a, C, State> {
     clocks: Clocks,
-    tim: TIMER32,
     _state: State,
+    tim: Option<&'a TIMER32>,
     channel: PhantomData<C>,
 }
 
-impl Constrain<Timer32Config <NotDefined, NotDefined>> for TIMER32 {
-    fn constrain(self) -> Timer32Config <NotDefined, NotDefined> {
-        Timer32Config::<NotDefined,NotDefined>::tim32(self)
+pub struct Parts<'a, State> {
+    pub channel0: Timer32Control<'a, Channel0, State>,
+    pub channel1: Timer32Control<'a, Channel1, State>,
+    pub tim: Option<TIMER32>,
+}
+
+impl <'a>Split<'a> for TIMER32 {
+    type Parts = Parts<'a, NotDefined>;
+
+    fn split(self) -> Self::Parts {
+        Parts::<'a, NotDefined>::new(self)
     }
 }
 
-impl Timer32Config <NotDefined, NotDefined> {
+impl <'a>Parts <'a, NotDefined> {
 
-    fn tim32(timer: TIMER32 ) -> Timer32Config <NotDefined, NotDefined> {
+    fn new(timer: TIMER32 ) -> Parts<'a, NotDefined> {
 
         let hz: Hertz = Hertz(0);
         let clock: Clocks = Clocks{aclk: hz, mclk: hz, hsmclk: hz, smclk: hz, bclk: hz };
 
-        Timer32Config {
-            clocks: clock,
-            tim: timer,
-            _state: NotDefined,
-            channel: PhantomData,
+        Parts::<'a, NotDefined> {
+            tim: Some(timer),
+            channel0: Timer32Control::<'a, Channel0, NotDefined> {
+                clocks: clock.clone(),
+                _state: NotDefined,
+                tim: None,
+                channel: PhantomData,
+            },
+            channel1: Timer32Control::<'a, Channel1, NotDefined> {
+                clocks: clock.clone(),
+                _state: NotDefined,
+                tim: None,
+                channel: PhantomData,
+            },
         }
     }
 
-    pub fn set_clock(self, clock: Clocks) -> Timer32Config <NotDefined, Defined> {
-        Timer32Config {
-            clocks: clock,
+    pub fn set_clock(self, clock: Clocks) -> Parts<'a, Defined> {
+        Parts::<'a, Defined> {
             tim: self.tim,
-            _state: Defined,
-            channel: PhantomData,
-        }
-    }
-}
-
-impl <C>Timer32Config <C, Defined> {
-    pub fn channel0(&mut self) -> &mut Timer32Config::<Channel0, Defined> {
-        unsafe {
-            transmute::<&mut Self, &mut Timer32Config <Channel0, Defined>>(self)
-        }
-    }
-
-    pub fn channel1(&mut self) -> &mut Timer32Config::<Channel1, Defined> {
-        unsafe {
-            transmute::<&mut Self, &mut Timer32Config <Channel1, Defined>>(self)
+            channel0: Timer32Control::<'a, Channel0, Defined> {
+                clocks: clock.clone(),
+                _state: Defined,
+                tim: None,
+                channel: PhantomData,
+            },
+            channel1: Timer32Control::<'a, Channel1, Defined> {
+                clocks: clock.clone(),
+                _state: Defined,
+                tim: None,
+                channel: PhantomData,
+            },
         }
     }
 }
@@ -99,7 +109,13 @@ macro_rules! timer32 {
     ($($Channeli:ident, $t32controli:ident, $t32intclri:ident, $t32misi:ident, $t32loadi:ident, $t32risi:ident, $t32valuei:ident),*) => {
         $(
 
-            impl Timer32Config <$Channeli, Defined> {
+            impl <'a>Timer32Control<'a, $Channeli, Defined> {
+
+                #[inline]
+                pub fn borrow(&mut self, timer: &'a TIMER32) -> &mut Self {
+                    self.tim = Some(timer);
+                    self
+                }
 
                 #[inline]
                 pub fn update_clock(&mut self, clocks: Clocks) -> &mut Self {
@@ -109,29 +125,29 @@ macro_rules! timer32 {
 
                 #[inline]
                 pub fn get_ticks(&self) -> u32 {
-                    self.tim.$t32valuei.read().bits()
+                    self.tim.unwrap().$t32valuei.read().bits()
                 }
 
                 #[inline]
                 pub fn enable_interrupt(&mut self) -> &mut Self {
-                    self.tim.$t32controli.modify(|_, w| w.ie().ie_1());
+                    self.tim.unwrap().$t32controli.modify(|_, w| w.ie().ie_1());
                     self
                 }
 
                 #[inline]
                 pub fn disable_interrupt(&mut self) -> &mut Self {
-                    self.tim.$t32controli.modify(|_, w| w.ie().ie_0());
+                    self.tim.unwrap().$t32controli.modify(|_, w| w.ie().ie_0());
                     self
                 }
 
                 #[inline]
                 pub fn interrupt_enabled(&self) -> bool {
-                    self.tim.$t32controli.read().ie().is_ie_1() == true
+                    self.tim.unwrap().$t32controli.read().ie().is_ie_1() == true
                 }
 
                 #[inline]
                 pub fn clear_interrupt_pending_bit(&mut self) -> &mut Self {
-                    self.tim.$t32intclri.write(|w| unsafe {
+                    self.tim.unwrap().$t32intclri.write(|w| unsafe {
                         w.intclr().bits(0x01)
                     });
 
@@ -140,19 +156,19 @@ macro_rules! timer32 {
 
                 #[inline]
                 pub fn check_interrupt(&self) -> bool {
-                    self.tim.$t32misi.read().bits() & 0x01 != 0
+                    self.tim.unwrap().$t32misi.read().bits() & 0x01 != 0
                 }
 
                 #[inline]
                 fn stop_timer(&mut self) -> &mut Self {
-                    self.tim.$t32controli.modify(|_, w| w.enable().enable_0());
+                    self.tim.unwrap().$t32controli.modify(|_, w| w.enable().enable_0());
                     self
                 }
 
                 #[inline]
                 fn timer_wrapped(&mut self) -> bool {
-                    if(self.tim.$t32controli.read().mode().is_mode_0() ||
-                       self.tim.$t32risi.read().raw_ifg().bits()) {
+                    if(self.tim.unwrap().$t32controli.read().mode().is_mode_0() ||
+                       self.tim.unwrap().$t32risi.read().raw_ifg().bits()) {
                        self.clear_interrupt_pending_bit();
                        true
                     } else {
@@ -162,7 +178,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn timer_running(&self) -> bool {
-                    self.tim.$t32controli.read().enable().is_enable_1() == true
+                    self.tim.unwrap().$t32controli.read().enable().is_enable_1() == true
                 }
 
                 #[inline]
@@ -208,7 +224,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn set_count(&self, count: u32) {
-                    self.tim.$t32loadi.modify(|_, w| unsafe {
+                    self.tim.unwrap().$t32loadi.modify(|_, w| unsafe {
                         w.bits(count)
                     });
                 }
@@ -231,9 +247,9 @@ macro_rules! timer32 {
                     use ClockSourcePrescaler32::*;
 
                     match prescaler {
-                          _1  => self.tim.$t32controli.modify(|_, w| w.prescale().prescale_0()),
-                         _16  => self.tim.$t32controli.modify(|_, w| w.prescale().prescale_1()),
-                        _256  => self.tim.$t32controli.modify(|_, w| w.prescale().prescale_2()),
+                          _1  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_0()),
+                         _16  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_1()),
+                        _256  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_2()),
                     };
 
                     prescaler
@@ -241,7 +257,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn start_timer(&self) {
-                    self.tim.$t32controli.modify(|_, w|
+                    self.tim.unwrap().$t32controli.modify(|_, w|
                         w.enable().enable_1()
                         .mode().mode_1()
                         .size().size_1()
@@ -251,7 +267,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn start_oneshot(&self) {
-                    self.tim.$t32controli.modify(|_, w|
+                    self.tim.unwrap().$t32controli.modify(|_, w|
                         w.enable().enable_1()
                         .mode().mode_1()
                         .size().size_1()
@@ -261,7 +277,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn start_freerunning(&self) {
-                    self.tim.$t32controli.modify(|_, w|
+                    self.tim.unwrap().$t32controli.modify(|_, w|
                         w.enable().enable_1()
                         .mode().mode_0()
                         .size().size_1()
@@ -270,7 +286,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl CountDown for Timer32Config <$Channeli, Defined>{
+            impl <'a> CountDown for Timer32Control<'a, $Channeli, Defined>{
                 type Error = Error;
                 type Time = Count;
 
@@ -300,7 +316,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl Cancel for Timer32Config <$Channeli, Defined> {
+            impl <'a> Cancel for Timer32Control<'a, $Channeli, Defined> {
                 fn try_cancel(&mut self) -> Result<(), Self::Error> {
                     if(self.timer_running()) {
                         self.stop_timer();
@@ -311,9 +327,9 @@ macro_rules! timer32 {
                 }
             }
 
-            impl Periodic for Timer32Config <$Channeli, Defined> {}
+            impl <'a> Periodic for Timer32Control<'a, $Channeli, Defined> {}
 
-            impl OneShot for Timer32Config <$Channeli, Defined> {
+            impl <'a> OneShot for Timer32Control<'a, $Channeli, Defined> {
 
                 type Error = Error;
                 type Time = Count;
@@ -334,7 +350,7 @@ macro_rules! timer32 {
                 }
             }
 
-            impl FreeRunning for Timer32Config <$Channeli, Defined> {
+            impl <'a> FreeRunning for Timer32Control<'a, $Channeli, Defined> {
 
                 type Error = Error;
 

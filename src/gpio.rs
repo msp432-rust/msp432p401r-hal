@@ -290,7 +290,7 @@ macro_rules! gpio {
             )+)+)+
         }
 
-        impl Split for $DIO {
+        impl Split<'_> for $DIO {
             type Parts = Parts;
 
             fn split(self) -> Parts {
