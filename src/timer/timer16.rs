@@ -8,7 +8,7 @@ use pac::TIMER_A2;
 use pac::TIMER_A3;
 
 use crate::clock::Clocks;
-use crate::timer::time::{TimeCount, Hertz};
+use crate::timer::time::{TimeCount, Hertz, MilliSeconds};
 
 use ClockSource::*;
 use ClockSourcePrescaler::*;
@@ -162,11 +162,11 @@ macro_rules! timer {
                     let mut clock_source : ClockSource = Smclk;
 
                     if count.is_frequency() {
-                        let frequency = count.value;
+                        let frequency: u32 = u32::from(Hertz::from(count));
                         aclk_ratio = self.clocks.aclk.0 / frequency;
                         smclk_ratio = self.clocks.smclk.0 / frequency;
                     } else {
-                        let period = count.value;
+                        let period: u32 = u32::from(MilliSeconds::from(count));
                         aclk_ratio = (period*self.clocks.aclk.0)/1000;
                         smclk_ratio = period*(self.clocks.smclk.0/1000);
                     }

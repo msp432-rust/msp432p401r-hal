@@ -6,7 +6,7 @@ use pac::TIMER32;
 use core::marker::PhantomData;
 
 use crate::clock::Clocks;
-use crate::timer::time::{TimeCount, Hertz};
+use crate::timer::time::{TimeCount, Hertz, MilliSeconds};
 
 const MAX_PRESCALER32: u32 = 0x0100;
 
@@ -182,10 +182,10 @@ macro_rules! timer32 {
                     let count_ratio : u64;
 
                     if count.is_frequency() {
-                        let frequency = count.value;
+                        let frequency: u32 = u32::from(Hertz::from(count));
                         count_ratio = (self.clocks.mclk.0 / frequency) as u64;
                     } else {
-                        let period = count.value;
+                        let period: u32 = u32::from(MilliSeconds::from(count));
                         count_ratio = (period *(self.clocks.mclk.0/1000)) as u64;
                     }
 
