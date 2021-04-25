@@ -16,7 +16,7 @@ use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::{ToggleableOutputPin, OutputPin};
 use hal::pcm::CoreVoltageSelection;
-use hal::timer::*;
+use hal::timer::{time::TimerUnit, timer32::{Cancel, OneShot, CountDown, FreeRunning}};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
 use pac::interrupt;
 
@@ -66,12 +66,10 @@ fn main() -> ! {
     let mut timer1 = tim32.channel1;
     let tim32 = tim32.tim.unwrap();
 
-    let mut count = Count(3, TimerUnit::Seconds);
-
     p1_0.try_toggle().unwrap();
 
     // TIM32 Channel 0 - One shot Mode
-    timer0.borrow(&tim32).try_start_oneshot(count).unwrap();
+    timer0.borrow(&tim32).try_start_oneshot(3.seconds()).unwrap();
 
     // TIM32 Channel 1 - Free Running Mode
     timer1.borrow(&tim32).try_start_freerunning().unwrap();
@@ -91,12 +89,10 @@ fn main() -> ! {
     timer1.borrow(&tim32).try_cancel().unwrap();
 
     // TIM32 Channel 0 - Periodic Mode - Blocking
-    count = Count(10, TimerUnit::Hertz);
-    timer0.borrow(&tim32).try_start(count).unwrap();
+    timer0.borrow(&tim32).try_start(10.hertz()).unwrap();
 
     // TIM32 Channel 1 - Periodic Mode - Interrupt
-    count = Count(1, TimerUnit::Hertz);
-    timer1.borrow(&tim32).enable_interrupt().try_start(count).unwrap();
+    timer1.borrow(&tim32).enable_interrupt().try_start(1.hertz()).unwrap();
 
     cortex_m::interrupt::free(|_| {
         unsafe{

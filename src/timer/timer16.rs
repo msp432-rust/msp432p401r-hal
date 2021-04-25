@@ -1,6 +1,6 @@
 //! HAL library for Timer module (TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-use crate::common::{Constrain, NotDefined, Defined};
+use crate::common::{Constrain, NotDefined, Defined, Error};
 
 use pac::TIMER_A0;
 use pac::TIMER_A1;
@@ -8,8 +8,7 @@ use pac::TIMER_A2;
 use pac::TIMER_A3;
 
 use crate::clock::Clocks;
-use crate::time::Hertz;
-use crate::timer::*;
+use crate::timer::time::{TimeCount, Hertz};
 
 use ClockSource::*;
 use ClockSourcePrescaler::*;
@@ -155,34 +154,19 @@ macro_rules! timer {
                 }
 
                 #[inline]
-                fn setup_timer(&self, count: Count) -> bool {
-                    use TimerUnit::*;
-                    match count.1 {
-                        Hertz | Milliseconds => self.setup_count(count),
-                        Kilohertz => self.setup_count(Count(count.0 * 1000, Hertz)),
-                        Seconds => self.setup_count(Count(count.0 * 1000, Milliseconds)),
-                    }
-                }
-
-                #[inline]
-                fn setup_count(&self, count: Count) -> bool {
-
+                fn setup_timer(&self, count: TimeCount) -> bool {
                     let max_period = MAX_PRESCALER * MAX_COUNT;
                     let aclk_ratio: u32;
                     let smclk_ratio : u32;
                     let mut count_ratio : u32  = 0;
                     let mut clock_source : ClockSource = Smclk;
 
-                    if count.0.checked_mul(self.clocks.aclk.0) == None {
-                        return false;
-                    }
-
-                    if count.1 == TimerUnit::Hertz {
-                        let frequency = count.0;
+                    if count.is_frequency() {
+                        let frequency = count.value;
                         aclk_ratio = self.clocks.aclk.0 / frequency;
                         smclk_ratio = self.clocks.smclk.0 / frequency;
                     } else {
-                        let period = count.0;
+                        let period = count.value;
                         aclk_ratio = (period*self.clocks.aclk.0)/1000;
                         smclk_ratio = period*(self.clocks.smclk.0/1000);
                     }
@@ -199,7 +183,7 @@ macro_rules! timer {
                         let mut min_prescaler = (count_ratio / MAX_COUNT) as u8;
 
                         // In period, prescaler need to be above the min_prescaler value
-                        if count.1 != TimerUnit::Hertz {
+                        if count.is_period() {
                             min_prescaler = min_prescaler + 1;
                         }
 
@@ -231,7 +215,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn get_prescaler(&self, min_prescaler: u8) -> ClockSourcePrescaler {
-
                     match min_prescaler {
                         0..=1 => self.setup_prescaler(_1),
                         2 => self.setup_prescaler(_2),
@@ -258,7 +241,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn setup_prescaler(&self, prescaler: ClockSourcePrescaler) -> ClockSourcePrescaler {
-
                     match prescaler {
                         _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 => {
                             self.tim.tax_ctl.modify(|_,w| w.id().id_0());
@@ -289,7 +271,7 @@ macro_rules! timer {
 
             impl CountDown for TimerConfig <$TIMER, Defined> {
                 type Error = Error;
-                type Time = Count;
+                type Time = TimeCount;
 
                 fn try_start <T>(&mut self, count: T) -> Result<(), Self::Error>
                 where

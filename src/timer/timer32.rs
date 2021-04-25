@@ -1,16 +1,12 @@
 //! HAL library for Timer module (Timer32) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
-use crate::common::{Split, NotDefined, Defined};
+use crate::common::{Split, NotDefined, Defined, Error};
 
 use pac::TIMER32;
 use core::marker::PhantomData;
 
 use crate::clock::Clocks;
-use crate::time::Hertz;
-use crate::timer::*;
-
-unsafe impl Send for Channel0 {}
-unsafe impl Send for Channel1 {}
+use crate::timer::time::{TimeCount, Hertz};
 
 const MAX_PRESCALER32: u32 = 0x0100;
 
@@ -62,10 +58,9 @@ impl <'a>Split<'a> for TIMER32 {
     }
 }
 
-impl <'a>Parts <'a, NotDefined> {
+impl <'a>Parts<'a, NotDefined> {
 
     fn new(timer: TIMER32 ) -> Parts<'a, NotDefined> {
-
         let hz: Hertz = Hertz(0);
         let clock: Clocks = Clocks{aclk: hz, mclk: hz, hsmclk: hz, smclk: hz, bclk: hz };
 
@@ -108,7 +103,6 @@ impl <'a>Parts <'a, NotDefined> {
 macro_rules! timer32 {
     ($($Channeli:ident, $t32controli:ident, $t32intclri:ident, $t32misi:ident, $t32loadi:ident, $t32risi:ident, $t32valuei:ident),*) => {
         $(
-
             impl <'a>Timer32Control<'a, $Channeli, Defined> {
 
                 #[inline]
@@ -182,34 +176,24 @@ macro_rules! timer32 {
                 }
 
                 #[inline]
-                fn setup_timer(&self, count: Count) -> bool {
-                    use TimerUnit::*;
-                    match count.1 {
-                        Hertz | Milliseconds => self.setup_count(count),
-                        Kilohertz => self.setup_count(Count(count.0 * 1000, Hertz)),
-                        Seconds => self.setup_count(Count(count.0 * 1000, Milliseconds)),
-                    }
-                }
-
-                #[inline]
-                fn setup_count(&self, count: Count) -> bool {
+                fn setup_timer(&self, count: TimeCount) -> bool {
 
                     let max_period: u64 = (MAX_PRESCALER32 as u64 * u32::MAX as u64) ;
                     let count_ratio : u64;
 
-                    if count.1 == TimerUnit::Hertz {
-                        let frequency = count.0;
+                    if count.is_frequency() {
+                        let frequency = count.value;
                         count_ratio = (self.clocks.mclk.0 / frequency) as u64;
                     } else {
-                        let period = count.0;
-                        count_ratio = (period*(self.clocks.mclk.0/1000)) as u64;
+                        let period = count.value;
+                        count_ratio = (period *(self.clocks.mclk.0/1000)) as u64;
                     }
 
                     if(count_ratio < max_period) {
                         let mut min_prescaler = (count_ratio / u32::MAX as u64) as u8;
 
                         // In period, prescaler need to be above the min_prescaler value
-                        if count.1 != TimerUnit::Hertz {
+                        if count.is_period(){
                             min_prescaler = min_prescaler + 1;
                         }
 
@@ -231,9 +215,7 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn get_prescaler(&self, min_prescaler: u8) -> ClockSourcePrescaler32 {
-
                     use ClockSourcePrescaler32::*;
-
                     match min_prescaler {
                         0..=1 => self.setup_prescaler(_1),
                         2..=16 => self.setup_prescaler(_16),
@@ -243,15 +225,12 @@ macro_rules! timer32 {
 
                 #[inline]
                 fn setup_prescaler(&self, prescaler: ClockSourcePrescaler32) -> ClockSourcePrescaler32 {
-
                     use ClockSourcePrescaler32::*;
-
                     match prescaler {
                           _1  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_0()),
                          _16  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_1()),
                         _256  => self.tim.unwrap().$t32controli.modify(|_, w| w.prescale().prescale_2()),
                     };
-
                     prescaler
                 }
 
@@ -288,7 +267,7 @@ macro_rules! timer32 {
 
             impl <'a> CountDown for Timer32Control<'a, $Channeli, Defined>{
                 type Error = Error;
-                type Time = Count;
+                type Time = TimeCount;
 
                 fn try_start <T>(&mut self, count: T) -> Result<(), Self::Error>
                 where
@@ -330,9 +309,8 @@ macro_rules! timer32 {
             impl <'a> Periodic for Timer32Control<'a, $Channeli, Defined> {}
 
             impl <'a> OneShot for Timer32Control<'a, $Channeli, Defined> {
-
                 type Error = Error;
-                type Time = Count;
+                type Time = TimeCount;
 
                 fn try_start_oneshot <T>(&mut self, count: T) -> Result<(), Self::Error>
                     where
@@ -351,7 +329,6 @@ macro_rules! timer32 {
             }
 
             impl <'a> FreeRunning for Timer32Control<'a, $Channeli, Defined> {
-
                 type Error = Error;
 
                 fn try_start_freerunning(&mut self) -> Result<(), Self::Error> {

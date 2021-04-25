@@ -15,7 +15,7 @@ use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
-use hal::timer::{Count, CountDown, TimerUnit};
+use hal::timer::{time::TimerUnit, timer16::CountDown};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
 use pac::Peripherals;
 
@@ -60,8 +60,7 @@ fn main() -> ! {
     let mut p1_0 = gpio.p1_0.into_output();
 
     let mut tim0 = p.TIMER_A0.constrain().set_clock(_clock);
-    let count = Count(10, TimerUnit::Hertz);
-    tim0.try_start(count).unwrap();
+    tim0.try_start(10.hertz()).unwrap();
 
     loop {
         watchdog.try_feed().unwrap();

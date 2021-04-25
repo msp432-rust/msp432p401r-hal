@@ -26,9 +26,9 @@ use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashWaitStates};
 use hal::gpio::ToggleableOutputPin;
 use hal::pcm::CoreVoltageSelection;
-use hal::pmap::{Mapping, PortMap};
+use hal::portmap::{Mapping, PortMap};
 use hal::serial::{spi, SPI};
-use hal::timer::{Count, CountDown, TimerUnit};
+use hal::timer::{timer16::CountDown, time::TimerUnit};
 use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
 use pac::Peripherals;
 
@@ -93,7 +93,7 @@ fn main() -> ! {
     let spi_a1 = eusci_a1.init();
     let spi_a3 = eusci_a3.init();
 
-    timer.try_start(Count(1, TimerUnit::Seconds)).unwrap();
+    timer.try_start(1.seconds()).unwrap();
     let mut led = gpio.p1_0.into_output();
 
     let mut tx: u8 = 0xCA;
