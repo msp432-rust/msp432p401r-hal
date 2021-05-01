@@ -61,38 +61,37 @@ fn main() -> ! {
     let mut p2_1 = gpio.p2_1.into_output();
     let mut p2_2 = gpio.p2_2.into_output();
 
-    let tim32 = p.TIMER32.split().set_clock(_clock);
-    let mut timer0 = tim32.channel0;
-    let mut timer1 = tim32.channel1;
-    let tim32 = tim32.tim.unwrap();
+    let timer32 = p.TIMER32.split().set_clock(_clock);
+    let mut timer0 = timer32.channel0;
+    let mut timer1 = timer32.channel1;
 
     p1_0.try_toggle().unwrap();
 
     // TIM32 Channel 0 - One shot Mode
-    timer0.borrow(&tim32).try_start_oneshot(3.seconds()).unwrap();
+    timer0.try_start_oneshot(3.seconds()).unwrap();
 
     // TIM32 Channel 1 - Free Running Mode
-    timer1.borrow(&tim32).try_start_freerunning().unwrap();
+    timer1.try_start_freerunning().unwrap();
 
-    let mut ticks = timer1.borrow(&tim32).get_ticks();
+    let mut ticks = timer1.get_ticks();
     hprintln!("Ticks 0: 0x{:x?}", ticks).unwrap();
 
-    block!(timer0.borrow(&tim32).try_wait()).unwrap();
+    block!(timer0.try_wait()).unwrap();
 
     p1_0.try_toggle().unwrap();
 
-    ticks = timer1.borrow(&tim32).get_ticks();
+    ticks = timer1.get_ticks();
     hprintln!("Ticks 1: 0x{:x?}", ticks).unwrap();
 
     // TIMER32 - Stop Timers and Reset Config
-    timer0.borrow(&tim32).try_cancel().unwrap();
-    timer1.borrow(&tim32).try_cancel().unwrap();
+    timer0.try_cancel().unwrap();
+    timer1.try_cancel().unwrap();
 
     // TIM32 Channel 0 - Periodic Mode - Blocking
-    timer0.borrow(&tim32).try_start(10.hertz()).unwrap();
+    timer0.try_start(10.hertz()).unwrap();
 
     // TIM32 Channel 1 - Periodic Mode - Interrupt
-    timer1.borrow(&tim32).enable_interrupt().try_start(1.hertz()).unwrap();
+    timer1.enable_interrupt().try_start(1.hertz()).unwrap();
 
     cortex_m::interrupt::free(|_| {
         unsafe{
@@ -137,8 +136,8 @@ fn main() -> ! {
                 led_state = unsafe{LED_STATE};
             }
 
-            if timer1.borrow(&tim32).check_interrupt() {
-                timer1.borrow(&tim32).clear_interrupt_pending_bit();
+            if timer1.check_interrupt() {
+                timer1.clear_interrupt_pending_bit();
 
                 cortex_m::interrupt::free(|_| {
                     unsafe{
@@ -147,7 +146,7 @@ fn main() -> ! {
                 });
             };
 
-            timer0.borrow(&tim32).try_wait()
+            timer0.try_wait()
         }).unwrap();
     }
 }
