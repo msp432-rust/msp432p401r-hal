@@ -2,13 +2,12 @@
 pub use pac::PMAP;
 pub use pac::pmap;
 use cortex_m::interrupt;
+use crate::common::Constrain;
 use crate::gpio::{Alternate, Primary};
 
 const UNLOCK_KEY: u16 = 0x2D52;
 const OFFSET0: u16 = 0x0000;
 const OFFSET1: u16 = 0x0008;
-
-static mut PORT_MAP: PmapControl = PmapControl {map: None};
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -67,15 +66,9 @@ pub struct PmapControl {
     map: Option<PMAP>,
 }
 
-pub trait PmapExt {
-    fn constrain(self);
-}
-
-impl PmapExt for PMAP {
-    fn constrain(self) {
-        unsafe {
-            PORT_MAP = PmapControl::new(self);
-        };
+impl Constrain<PmapControl> for PMAP {
+    fn constrain(self) -> PmapControl {
+        PmapControl::new(self)
     }
 }
 
@@ -88,13 +81,13 @@ impl PmapControl {
     }
 
     #[inline]
-    fn configure(&mut self, allow_reconfiguration: bool) -> &Self {
+    fn configure(&self, allow_reconfiguration: bool) -> &Self {
         self.map.as_ref().unwrap().pmapctl.modify(|_, w| w.pmaprecfg().bit(allow_reconfiguration));
         self
     }
 
     #[inline]
-    fn key_lock(&mut self, lock: bool) -> &Self{
+    fn key_lock(&self, lock: bool) -> &Self{
         if lock {
             self.map.as_ref().unwrap().pmapkeyid.write(|w| unsafe {
                 w.pmapkey().bits(0)
@@ -109,7 +102,7 @@ impl PmapControl {
 }
 
 pub trait PortMap {
-    fn remap(self, mapping: Mapping, allow_reconfiguration: bool) -> Self;
+    fn remap(self, pmap: &PmapControl, mapping: Mapping, allow_reconfiguration: bool) -> Self;
 }
 
 macro_rules! portmap {
@@ -120,20 +113,20 @@ macro_rules! portmap {
             impl PortMap for $PI_i<Alternate<Primary>> {
 
                 #[inline]
-                fn remap(self, mapping: Mapping, allow_reconfiguration: bool) -> Self {
+                fn remap(self, pmap: &PmapControl, mapping: Mapping, allow_reconfiguration: bool) -> Self {
 
                     unsafe{
-                        PORT_MAP.key_lock(false);
+                        pmap.key_lock(false);
 
-                        PORT_MAP.configure(allow_reconfiguration);
+                        pmap.configure(allow_reconfiguration);
 
                         interrupt::free(|_| {
-                            PORT_MAP.map.as_ref().unwrap().$pimapxy.modify(|r, w|
+                            pmap.map.as_ref().unwrap().$pimapxy.modify(|r, w|
                                 w.pmapx().bits((r.pmapx().bits() & !(0x00FF << $offset)) | ((mapping as u16) << $offset))
                             );
                         });
 
-                        PORT_MAP.key_lock(true);
+                        pmap.key_lock(true);
                     };
 
                     self

@@ -17,35 +17,43 @@ use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
 use embedded_hal::spi::*;
 use msp432p401r as pac;
+use msp432p401r_hal as hal;
 use nb::block;
 use panic_halt as _;
 
-use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
-use hal::flash::{FlashExt, FlashWaitStates};
-use hal::gpio::{GpioExt, ToggleableOutputPin};
-use hal::pcm::{PcmExt, VCoreSel};
-use hal::pmap::{Mapping,PmapExt,PortMap};
+use hal::common::{Constrain, Split};
+use hal::clock::{DCOFrequency, MPrescaler, SMPrescaler};
+use hal::flash::{FlashWaitStates};
+use hal::gpio::ToggleableOutputPin;
+use hal::pcm::CoreVoltageSelection;
+use hal::portmap::{Mapping, PortMap};
 use hal::serial::{spi, SPI};
-use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
-use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
-use msp432p401r_hal as hal;
+use hal::timer::{timer16::CountDown, time::TimerUnit};
+use hal::watchdog::{Options, ClockSource, TimerInterval, Watchdog, Enable, Disable};
+use pac::Peripherals;
 
 #[entry]
 fn main() -> ! {
-    let p = pac::Peripherals::take().unwrap();
 
-    let mut watchdog = p.WDT_A.constrain();
-    watchdog.set_timer_interval(TimerInterval::At31);
-    watchdog.try_feed().unwrap();
+    // Take the Peripherals
+    let p: Peripherals = Peripherals::take().unwrap();
 
+    // Setup the Watchdog - Disable the WDT to configure some parameters.
+    let mut watchdog = p.WDT_A.constrain()
+        .try_disable().unwrap()
+        .try_start(Options(ClockSource::SMCLK,TimerInterval::At31)).unwrap();
+
+    // PCM Configuration with DCDC max. voltage - 48 MHz MCLK operation
     let _pcm = p.PCM.constrain()
-        .set_vcore(VCoreSel::DcdcVcore1)
+        .set_core_voltage(CoreVoltageSelection::DcDc)
         .freeze();
 
+    // Setup Flash Control - Two wait states for 48 MHz.
     let _flash_control = p.FLCTL.constrain()
         .set_waitstates(FlashWaitStates::_2)
         .freeze();
 
+    // Setup the Clock Source - MCLK: 48 MHz DCO | SMCLK: 24 MHz
     let clock = p.CS.constrain()
         .mclk_dcosource_selection(DCOFrequency::_48MHz, MPrescaler::DIVM_0)
         .smclk_prescaler(SMPrescaler::DIVS_1)
@@ -53,7 +61,7 @@ fn main() -> ! {
 
     let mut timer = p.TIMER_A0.constrain().set_clock(clock);
 
-    let _pmap = p.PMAP.constrain();
+    let pmap = p.PMAP.constrain();
     let gpio = p.DIO.split();
 
     // Master SPI
@@ -65,9 +73,9 @@ fn main() -> ! {
         .with_bit_rate_prescaler(0x02);
 
     // Setup eUSCI_A1 SPI PINs into proper alternate mode
-    gpio.p2_4.into_alternate_primary().remap(Mapping::UCA1STE, true);
-    gpio.p2_6.into_alternate_primary().remap(Mapping::UCA1CLK,true);
-    gpio.p2_7.into_alternate_primary().remap(Mapping::UCA1SOMI, true);
+    gpio.p2_4.into_alternate_primary().remap(&pmap, Mapping::UCA1STE, true);
+    gpio.p2_6.into_alternate_primary().remap(&pmap, Mapping::UCA1CLK,true);
+    gpio.p2_7.into_alternate_primary().remap(&pmap,Mapping::UCA1SOMI, true);
     gpio.p2_3.into_alternate_primary();
 
     // Slave SPI
@@ -85,7 +93,7 @@ fn main() -> ! {
     let spi_a1 = eusci_a1.init();
     let spi_a3 = eusci_a3.init();
 
-    timer.try_start(Count(1, TimerUnit::Seconds)).unwrap();
+    timer.try_start(1.seconds()).unwrap();
     let mut led = gpio.p1_0.into_output();
 
     let mut tx: u8 = 0xCA;

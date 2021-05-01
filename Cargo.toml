@@ -10,7 +10,6 @@ edition = "2018"
 
 [dev-dependencies]
 panic-halt = "0.2.0"
-irq = "0.2.3"
 
 [dependencies]
 cortex-m = "0.7.2"

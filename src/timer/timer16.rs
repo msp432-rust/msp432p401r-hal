@@ -1,5 +1,6 @@
 //! HAL library for Timer module (TimerA) - MSP432P401R
 pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
+use crate::common::{Constrain, NotDefined, Defined, Error};
 
 use pac::TIMER_A0;
 use pac::TIMER_A1;
@@ -7,8 +8,7 @@ use pac::TIMER_A2;
 use pac::TIMER_A3;
 
 use crate::clock::Clocks;
-use crate::time::Hertz;
-use crate::timer::*;
+use crate::timer::time::{TimeCount, Hertz, MilliSeconds};
 
 use ClockSource::*;
 use ClockSourcePrescaler::*;
@@ -48,33 +48,25 @@ enum ClockSourcePrescaler {
     _64 = 64,
 }
 
-pub struct TimerConfig<T, S: State> {
+pub struct TimerConfig<T, State> {
     clocks: Clocks,
     tim: T,
-    _state: S,
+    _state: State,
     count: u16,
-}
-
-pub trait TimerExt {
-    type Output;
-    fn constrain(self) -> Self::Output;
 }
 
 macro_rules! timer {
     ($($TIMER:ident, $tim:ident),*) => {
         $(
-            impl TimerExt for $TIMER {
-
-                type Output = TimerConfig<$TIMER, ClockNotDefined>;
-
-                fn constrain(self) -> Self::Output {
-                    TimerConfig::<$TIMER, ClockNotDefined>::$tim(self)
+            impl Constrain<TimerConfig::<$TIMER, NotDefined>> for $TIMER {
+                fn constrain(self) -> TimerConfig::<$TIMER, NotDefined> {
+                    TimerConfig::<$TIMER, NotDefined>::$tim(self)
                 }
             }
 
-            impl TimerConfig <$TIMER, ClockNotDefined> {
+            impl TimerConfig <$TIMER, NotDefined> {
 
-                fn $tim(timer: $TIMER) -> TimerConfig <$TIMER, ClockNotDefined>{
+                fn $tim(timer: $TIMER) -> TimerConfig <$TIMER, NotDefined> {
 
                     let hz: Hertz = Hertz(0);
                     let clock: Clocks = Clocks{aclk: hz, mclk: hz, hsmclk: hz, smclk: hz, bclk: hz };
@@ -82,22 +74,22 @@ macro_rules! timer {
                     TimerConfig {
                         clocks: clock,
                         tim: timer,
-                        _state: ClockNotDefined,
+                        _state: NotDefined,
                         count: 0,
                     }
                 }
 
-                pub fn set_clock(self, clock: Clocks) -> TimerConfig <$TIMER, ClockDefined> {
+                pub fn set_clock(self, clock: Clocks) -> TimerConfig <$TIMER, Defined> {
                     TimerConfig {
                         clocks: clock,
                         tim: self.tim,
-                        _state: ClockDefined,
+                        _state: Defined,
                         count: 0,
                     }
                 }
             }
 
-            impl TimerConfig <$TIMER, ClockDefined> {
+            impl TimerConfig <$TIMER, Defined> {
 
                 #[inline]
                 pub fn update_clock(&mut self, clocks: Clocks) -> &mut Self {
@@ -162,34 +154,19 @@ macro_rules! timer {
                 }
 
                 #[inline]
-                fn setup_timer(&self, count: Count) -> bool {
-                    use TimerUnit::*;
-                    match count.1 {
-                        Hertz | Milliseconds => self.setup_count(count),
-                        Kilohertz => self.setup_count(Count(count.0 * 1000, Hertz)),
-                        Seconds => self.setup_count(Count(count.0 * 1000, Milliseconds)),
-                    }
-                }
-
-                #[inline]
-                fn setup_count(&self, count: Count) -> bool {
-
+                fn setup_timer(&self, count: TimeCount) -> bool {
                     let max_period = MAX_PRESCALER * MAX_COUNT;
                     let aclk_ratio: u32;
                     let smclk_ratio : u32;
                     let mut count_ratio : u32  = 0;
                     let mut clock_source : ClockSource = Smclk;
 
-                    if count.0.checked_mul(self.clocks.aclk.0) == None {
-                        return false;
-                    }
-
-                    if count.1 == TimerUnit::Hertz {
-                        let frequency = count.0;
+                    if count.is_frequency() {
+                        let frequency: u32 = u32::from(Hertz::from(count));
                         aclk_ratio = self.clocks.aclk.0 / frequency;
                         smclk_ratio = self.clocks.smclk.0 / frequency;
                     } else {
-                        let period = count.0;
+                        let period: u32 = u32::from(MilliSeconds::from(count));
                         aclk_ratio = (period*self.clocks.aclk.0)/1000;
                         smclk_ratio = period*(self.clocks.smclk.0/1000);
                     }
@@ -206,7 +183,7 @@ macro_rules! timer {
                         let mut min_prescaler = (count_ratio / MAX_COUNT) as u8;
 
                         // In period, prescaler need to be above the min_prescaler value
-                        if count.1 != TimerUnit::Hertz {
+                        if count.is_period() {
                             min_prescaler = min_prescaler + 1;
                         }
 
@@ -238,7 +215,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn get_prescaler(&self, min_prescaler: u8) -> ClockSourcePrescaler {
-
                     match min_prescaler {
                         0..=1 => self.setup_prescaler(_1),
                         2 => self.setup_prescaler(_2),
@@ -265,7 +241,6 @@ macro_rules! timer {
 
                 #[inline]
                 fn setup_prescaler(&self, prescaler: ClockSourcePrescaler) -> ClockSourcePrescaler {
-
                     match prescaler {
                         _1 | _2 | _3 | _4 | _5 | _6 | _7 | _8 => {
                             self.tim.tax_ctl.modify(|_,w| w.id().id_0());
@@ -294,9 +269,9 @@ macro_rules! timer {
                 }
             }
 
-            impl CountDown for TimerConfig <$TIMER, ClockDefined> {
+            impl CountDown for TimerConfig <$TIMER, Defined> {
                 type Error = Error;
-                type Time = Count;
+                type Time = TimeCount;
 
                 fn try_start <T>(&mut self, count: T) -> Result<(), Self::Error>
                 where
@@ -325,7 +300,7 @@ macro_rules! timer {
                 }
             }
 
-            impl Cancel for TimerConfig <$TIMER, ClockDefined> {
+            impl Cancel for TimerConfig <$TIMER, Defined> {
                 fn try_cancel(&mut self) -> Result<(), Self::Error> {
                     if(self.timer_running()) {
                         self.stop_timer();
@@ -336,7 +311,7 @@ macro_rules! timer {
                 }
             }
 
-            impl Periodic for TimerConfig <$TIMER, ClockDefined> {}
+            impl Periodic for TimerConfig <$TIMER, Defined> {}
         )*
     };
 }

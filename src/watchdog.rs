@@ -1,7 +1,7 @@
 //! HAL library for WDT_A (Watchdog) Peripheral - MSP432P401R
 
 use core::convert::Infallible;
-
+use crate::common::Constrain;
 pub use hal::watchdog::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
@@ -40,7 +40,7 @@ pub enum TimerInterval {
     At6 = 0x0007,
 }
 
-pub struct Options(ClockSource, TimerInterval);
+pub struct Options(pub ClockSource, pub TimerInterval);
 
 pub trait State {}
 
@@ -52,11 +52,7 @@ impl State for Enabled {}
 
 impl State for Disabled {}
 
-pub trait WDTExt {
-    fn constrain(self) -> WatchdogTimer<Enabled>;
-}
-
-impl WDTExt for WDT_A {
+impl Constrain<WatchdogTimer<Enabled>> for WDT_A {
     fn constrain(self) -> WatchdogTimer<Enabled> {
         WatchdogTimer::<Enabled>::new(self)
     }
@@ -81,12 +77,12 @@ impl<S> WatchdogTimer<S> where S: State {
         self.set_reg_mask(!WDT_CONTROL_HOLD, WDT_CONTROL_MASK);
     }
 
-    pub fn set_timer_interval(&self, interval: TimerInterval) -> &Self {
+    fn set_timer_interval(&self, interval: TimerInterval) -> &Self {
         self.set_reg_mask(interval as u8,WDT_INTERVAL_MASK);
         self
     }
 
-    pub fn set_clock_source(&self, source: ClockSource) {
+    fn set_clock_source(&self, source: ClockSource) {
         self.set_reg_mask(source as u8, WDT_SOURCE_MASK);
     }
 
