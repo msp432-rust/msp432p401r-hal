@@ -2,7 +2,7 @@
 
 use core::convert::Infallible;
 
-pub use hal::watchdog::{Disable, Enable, Watchdog};
+pub use hal::watchdog::blocking::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
 const WDT_COUNTER_CLEAR: u8 = 0x08;

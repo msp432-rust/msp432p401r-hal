@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-pub use hal::digital::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
+pub use hal::digital::blocking::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
 
 pub struct Input<MODE> {
     _mode: PhantomData<MODE>,

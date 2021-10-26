@@ -13,11 +13,11 @@ panic-halt = "0.2.0"
 irq = "0.2.3"
 
 [dependencies]
-cortex-m = "0.7.2"
+cortex-m = "0.7.3"
 cortex-m-rt = "0.6.13"
 msp432p401r-pac = {version = "0.2.0", features = ["rt"]}
 cortex-m-semihosting = "0.3.3"
-embedded-hal = "1.0.0-alpha.4"
+embedded-hal = "1.0.0-alpha.5"
 nb = "1.0.0"
 
 [profile.dev]

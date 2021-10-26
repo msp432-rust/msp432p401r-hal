@@ -1,5 +1,6 @@
 //! HAL library for Timer module (Timer32) - MSP432P401R
-pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
+pub use embedded_hal::timer::Periodic;
+pub use hal::timer::nb::{Cancel, CountDown};
 
 use pac::TIMER32;
 use core::marker::PhantomData;
