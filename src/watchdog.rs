@@ -2,7 +2,7 @@
 
 use core::convert::Infallible;
 
-pub use hal::watchdog::{Disable, Enable, Watchdog};
+pub use hal::watchdog::blocking::{Disable, Enable, Watchdog};
 use pac::WDT_A;
 
 const WDT_COUNTER_CLEAR: u8 = 0x08;
@@ -138,7 +138,7 @@ impl Enable for WatchdogTimer<Disabled> {
     type Time = Options;
     type Target = WatchdogTimer<Enabled>;
 
-    fn try_start<T>(self, period: T) -> Result<Self::Target, Self::Error> where T: Into<Self::Time>,
+    fn start<T>(self, period: T) -> Result<Self::Target, Self::Error> where T: Into<Self::Time>,
     {
         self.setup(period.into());
         self.start_watchdog_timer();
@@ -149,7 +149,7 @@ impl Enable for WatchdogTimer<Disabled> {
 impl Watchdog for WatchdogTimer<Enabled> {
     type Error = Infallible;
 
-    fn try_feed(&mut self) -> Result<(), Self::Error> {
+    fn feed(&mut self) -> Result<(), Self::Error> {
         self.set_reg_mask(WDT_COUNTER_CLEAR, WDT_COUNTER_MASK);
         Ok(())
     }
@@ -160,7 +160,7 @@ impl Disable for WatchdogTimer<Enabled> {
 
     type Target = WatchdogTimer<Disabled>;
 
-    fn try_disable(self) -> Result<Self::Target, Self::Error> {
+    fn disable(self) -> Result<Self::Target, Self::Error> {
         self.stop_watchdog_timer();
         Ok(WatchdogTimer::<Disabled> { wdt: self.wdt, state: Disabled })
     }

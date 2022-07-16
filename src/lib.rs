@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(llvm_asm)]
 
 extern crate embedded_hal as hal;
 extern crate msp432p401r as pac;

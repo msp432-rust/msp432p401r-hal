@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-pub use hal::digital::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
+pub use hal::digital::blocking::{InputPin, OutputPin, StatefulOutputPin, ToggleableOutputPin};
 
 pub struct Input<MODE> {
     _mode: PhantomData<MODE>,
@@ -64,7 +64,7 @@ macro_rules! gpio {
     }) => {
         $(
             pub mod $portx {
-                use hal::digital::{OutputPin, InputPin, ToggleableOutputPin};
+                use hal::digital::blocking::{OutputPin, InputPin, ToggleableOutputPin};
                 use core::convert::Infallible;
                 use core::marker::PhantomData;
                 use super::*;
@@ -235,11 +235,11 @@ macro_rules! gpio {
                             type Error = Infallible;
 
                             #[inline]
-                            fn try_is_high(&self) -> Result<bool, Self::Error> {
-                                self.try_is_low().map(|low| !low)
+                            fn is_high(&self) -> Result<bool, Self::Error> {
+                                self.is_low().map(|low| !low)
                             }
 
-                            fn try_is_low(&self) -> Result<bool, Self::Error> {
+                            fn is_low(&self) -> Result<bool, Self::Error> {
                                 let dio = unsafe { &*$DIO::ptr() };
                                 let state = (dio.$pxin.read().$piin().bits() & (0x01 << $i)) == 0;
                                 Ok(state)
@@ -249,7 +249,7 @@ macro_rules! gpio {
                         impl OutputPin for $PI_i<Output> {
                             type Error = Infallible;
 
-                            fn try_set_low(&mut self) -> Result<(), Self::Error> {
+                            fn set_low(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*$DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
                                     w.$piout().bits(r.$piout().bits() & !(0x01 << $i))
@@ -257,7 +257,7 @@ macro_rules! gpio {
                                 Ok(())
                             }
 
-                            fn try_set_high(&mut self) -> Result<(), Self::Error> {
+                            fn set_high(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*$DIO::ptr() };
                                 dio.$pxout.modify(|r,w| unsafe {
                                     w.$piout().bits(r.$piout().bits() | (0x01 << $i))
@@ -267,11 +267,11 @@ macro_rules! gpio {
                         }
 
                         impl StatefulOutputPin for $PI_i<Output> {
-                            fn try_is_set_high(&self) -> Result<bool, Self::Error> {
-                                self.try_is_set_low().map(|b| !b)
+                            fn is_set_high(&self) -> Result<bool, Self::Error> {
+                                self.is_set_low().map(|b| !b)
                             }
 
-                            fn try_is_set_low(&self) -> Result<bool, Self::Error> {
+                            fn is_set_low(&self) -> Result<bool, Self::Error> {
                                 let dio = unsafe { &*$DIO::ptr() };
                                 Ok(dio.$pxout.read().$piout().bits() & (1 << $i) == 0)
                             }
@@ -280,7 +280,7 @@ macro_rules! gpio {
                         impl ToggleableOutputPin for $PI_i<Output> {
                             type Error = Infallible;
 
-                            fn try_toggle(&mut self) -> Result<(), Self::Error> {
+                            fn toggle(&mut self) -> Result<(), Self::Error> {
                                 let dio = unsafe { &*$DIO::ptr() };
                                     dio.$pxout.modify(|r,w| unsafe {
                                     w.$piout().bits(r.$piout().bits() ^ (0x01 << $i))

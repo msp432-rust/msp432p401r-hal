@@ -11,24 +11,22 @@ MOSI:   P2_3  -> P9_7
 
 #![no_main]
 #![no_std]
-#![feature(llvm_asm)]
 
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use embedded_hal::spi::*;
 use msp432p401r as pac;
-use nb::block;
+use msp432p401r_hal as hal;
 use panic_halt as _;
+use ::nb::block;
 
 use hal::clock::{CsExt, DCOFrequency, MPrescaler, SMPrescaler};
 use hal::flash::{FlashExt, FlashWaitStates};
 use hal::gpio::{GpioExt, ToggleableOutputPin};
 use hal::pcm::{PcmExt, VCoreSel};
 use hal::pmap::{Mapping,PmapExt,PortMap};
-use hal::serial::{spi, SPI};
+use hal::serial::{spi, spi::*, SPI};
 use hal::timer::{Count, CountDown, TimerExt, TimerUnit};
 use hal::watchdog::{TimerInterval, Watchdog, WDTExt};
-use msp432p401r_hal as hal;
 
 #[entry]
 fn main() -> ! {
@@ -36,7 +34,7 @@ fn main() -> ! {
 
     let mut watchdog = p.WDT_A.constrain();
     watchdog.set_timer_interval(TimerInterval::At31);
-    watchdog.try_feed().unwrap();
+    watchdog.feed().unwrap();
 
     let _pcm = p.PCM.constrain()
         .set_vcore(VCoreSel::DcdcVcore1)
@@ -85,21 +83,21 @@ fn main() -> ! {
     let spi_a1 = eusci_a1.init();
     let spi_a3 = eusci_a3.init();
 
-    timer.try_start(Count(1, TimerUnit::Seconds)).unwrap();
+    timer.start(Count(1, TimerUnit::Seconds)).unwrap();
     let mut led = gpio.p1_0.into_output();
 
     let mut tx: u8 = 0xCA;
     let mut rx: u8;
 
     loop {
-        watchdog.try_feed().unwrap();
-        led.try_toggle().unwrap();
+        watchdog.feed().unwrap();
+        led.toggle().unwrap();
         // @TODO WHY RX[n] = TX[n-1]?
-        hprintln!("Sending: {}", tx).unwrap();
+        hprintln!("Sending: {}", tx);
         spi_a1.write(tx);
         rx = spi_a3.read();
-        hprintln!("Reading: {}", rx).unwrap();
-        block!(timer.try_wait()).unwrap();
+        hprintln!("Reading: {}", rx);
+        block!(timer.wait()).unwrap();
 
         if tx == 0xFF {
             tx = 0;

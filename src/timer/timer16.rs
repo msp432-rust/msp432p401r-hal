@@ -1,5 +1,6 @@
 //! HAL library for Timer module (TimerA) - MSP432P401R
-pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
+pub use embedded_hal::timer::Periodic;
+pub use embedded_hal::timer::nb::{Cancel, CountDown};
 
 use pac::TIMER_A0;
 use pac::TIMER_A1;
@@ -298,7 +299,7 @@ macro_rules! timer {
                 type Error = Error;
                 type Time = Count;
 
-                fn try_start <T>(&mut self, count: T) -> Result<(), Self::Error>
+                fn start <T>(&mut self, count: T) -> Result<(), Self::Error>
                 where
                     T: Into<Self::Time> {
                     if(!self.timer_running()) {
@@ -316,7 +317,7 @@ macro_rules! timer {
                     }
                 }
 
-                fn try_wait(&mut self) -> nb::Result<(), Self::Error> {
+                fn wait(&mut self) -> nb::Result<(), Self::Error> {
                    if(self.timer_wrapped()) {
                         Ok(())
                    } else {
@@ -326,7 +327,7 @@ macro_rules! timer {
             }
 
             impl Cancel for TimerConfig <$TIMER, ClockDefined> {
-                fn try_cancel(&mut self) -> Result<(), Self::Error> {
+                fn cancel(&mut self) -> Result<(), Self::Error> {
                     if(self.timer_running()) {
                         self.stop_timer();
                         Ok(())

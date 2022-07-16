@@ -28,6 +28,7 @@ LPMx.5 --> Lowest power consumption
 */
 
 use pac::PCM;
+use core::arch::asm;
 use cortex_m::interrupt;
 
 pub struct PcmNotDefined;
@@ -134,7 +135,7 @@ impl PcmConfig<PcmDefined> {
 
         if source_state == self.source {
             for _n in 1..50 {
-                unsafe{llvm_asm!("NOP")};
+                unsafe{asm!("NOP")};
             }
             return self;
         }
@@ -168,11 +169,11 @@ impl PcmConfig<PcmDefined> {
 
     fn wait_pcm(&self) {
         while (self.pcm.pcmctl1.read().bits() >> 8) & 0x01 != 0 {
-            unsafe{llvm_asm!("NOP")};
+            unsafe{asm!("NOP")};
         }
 
         for _n in 1..50 {
-            unsafe{llvm_asm!("NOP")};
+            unsafe{asm!("NOP")};
         }
     }
 
