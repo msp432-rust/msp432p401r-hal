@@ -1,6 +1,8 @@
 use pac::{EUSCI_A0, EUSCI_A1, EUSCI_A2, EUSCI_A3};
 use pac::{EUSCI_B0, EUSCI_B1, EUSCI_B2, EUSCI_B3};
 
+pub use hal::spi::{MODE_0, MODE_1, MODE_2, MODE_3};
+
 use super::SPI;
 
 pub enum ClockSource {

@@ -28,7 +28,7 @@ fn main() -> ! {
     let mut _watchdog = p.WDT_A.constrain();                                 // Setup WatchdogTimer
 
     _watchdog.set_timer_interval(TimerInterval::At27);
-    _watchdog.try_feed().unwrap();
+    _watchdog.feed().unwrap();
 
     // PCM Config.
     let _pcm = p.PCM.constrain()                                              // Setup PCM
@@ -45,7 +45,7 @@ fn main() -> ! {
         .smclk_prescaler(SMPrescaler::DIVS_1)                                // 24 MHz SMCLK
         .freeze();
 
-    hprintln!("TIMER 32 Example").unwrap();
+    hprintln!("TIMER 32 Example");
 
     let gpio = p.DIO.split();
 
@@ -60,7 +60,7 @@ fn main() -> ! {
 
     let mut count = Count(3, TimerUnit::Seconds);
 
-    p1_0.try_toggle().unwrap();
+    p1_0.toggle().unwrap();
 
     // TIM32 Channel 0 - One shot Mode
     tim32.channel0().try_start_oneshot(count).unwrap();
@@ -69,26 +69,26 @@ fn main() -> ! {
     tim32.channel1().try_start_freerunning().unwrap();
 
     let mut ticks = tim32.channel1().get_ticks();
-    hprintln!("Ticks 0: 0x{:x?}", ticks).unwrap();
+    hprintln!("Ticks 0: 0x{:x?}", ticks);
 
-    block!(tim32.channel0().try_wait()).unwrap();
+    block!(tim32.channel0().wait()).unwrap();
 
-    p1_0.try_toggle().unwrap();
+    p1_0.toggle().unwrap();
 
     ticks = tim32.channel1().get_ticks();
-    hprintln!("Ticks 1: 0x{:x?}", ticks).unwrap();
+    hprintln!("Ticks 1: 0x{:x?}", ticks);
 
     // TIMER32 - Stop Timers and Reset Config
-    tim32.channel0().try_cancel().unwrap();
-    tim32.channel1().try_cancel().unwrap();
+    tim32.channel0().cancel().unwrap();
+    tim32.channel1().cancel().unwrap();
 
     // TIM32 Channel 0 - Periodic Mode - Blocking
     count = Count(10, TimerUnit::Hertz);
-    tim32.channel0().try_start(count).unwrap();
+    tim32.channel0().start(count).unwrap();
 
     // TIM32 Channel 1 - Periodic Mode - Interrupt
     count = Count(1, TimerUnit::Hertz);
-    tim32.channel1().enable_interrupt().try_start(count).unwrap();
+    tim32.channel1().enable_interrupt().start(count).unwrap();
 
     unsafe {
         cortex_m::peripheral::NVIC::unmask(pac::interrupt::T32_INT2_IRQ);
@@ -106,27 +106,27 @@ fn main() -> ! {
 
             match led_state {
                 0 => {
-                    p2_0.try_set_high().unwrap();
-                    p2_1.try_set_low().unwrap();
-                    p2_2.try_set_low().unwrap();
+                    p2_0.set_high().unwrap();
+                    p2_1.set_low().unwrap();
+                    p2_2.set_low().unwrap();
                 },
                 1 => {
-                    p2_1.try_set_high().unwrap();
+                    p2_1.set_high().unwrap();
                 },
                 2 => {
-                    p2_0.try_set_low().unwrap();
+                    p2_0.set_low().unwrap();
                 },
                 3 => {
-                    p2_2.try_set_high().unwrap();
+                    p2_2.set_high().unwrap();
                 },
                 4 => {
-                    p2_0.try_set_high().unwrap();
+                    p2_0.set_high().unwrap();
                 },
                 5 => {
-                    p2_1.try_set_low().unwrap();
+                    p2_1.set_low().unwrap();
                 },
                 _ => {
-                    p2_0.try_set_low().unwrap();
+                    p2_0.set_low().unwrap();
                 },
             }
 
@@ -147,19 +147,19 @@ fn main() -> ! {
         scope.register(Interrupts::T32_INT2_IRQ, int32_1);
 
         loop {
-            _watchdog.try_feed().unwrap();
-            p1_0.try_toggle().unwrap();
+            _watchdog.feed().unwrap();
+            p1_0.toggle().unwrap();
             block!({
                 cortex_m::interrupt::free(|cs| {
                     let mut tim = TIM32P.borrow(cs).borrow_mut();
-                    tim.as_mut().unwrap().channel0().try_wait()
+                    tim.as_mut().unwrap().channel0().wait()
                 })
             }).unwrap();
         }
     });
 
     loop {
-        _watchdog.try_feed().unwrap();
+        _watchdog.feed().unwrap();
         continue;
     }
 }

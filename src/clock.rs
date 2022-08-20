@@ -51,6 +51,7 @@ BCLK is restricted to a maximum frequency of 32.768 kHz
 */
 
 use cortex_m::interrupt;
+use core::arch::asm;
 
 use crate::time::Hertz;
 use pac::cs::csctl0::DCORSEL_A;
@@ -414,7 +415,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
             self.cs.csctl0.write(|w| { w.dcorsel().variant(target_freq.frequecy_range()) });
 
             for _n in 1..50 {
-                unsafe { llvm_asm!("NOP") };
+                unsafe { asm!("NOP") };
             }
         };
     }
@@ -424,7 +425,7 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
             self.cs.csctl2.write(|w| { w.hfxtfreq().variant(target_freq.hfxtsel()) });
 
             for _n in 1..50 {
-                unsafe { llvm_asm!("NOP") };
+                unsafe { asm!("NOP") };
             }
         };
     }
@@ -490,11 +491,11 @@ impl<SMCLK: SmclkState> ClockConfig<MclkDefined, SMCLK> {
 
     fn wait_clk(&self, flag: u8) {
         for _n in 1..50 {
-            unsafe { llvm_asm!("NOP") };
+            unsafe { asm!("NOP") };
         }
 
         while ((self.cs.csstat.read().bits() >> 24) as u8 & flag) != flag {
-            unsafe { llvm_asm!("NOP") };
+            unsafe { asm!("NOP") };
         };
     }
 }

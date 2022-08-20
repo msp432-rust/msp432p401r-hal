@@ -1,5 +1,6 @@
 //! HAL library for Timer module (Timer32) - MSP432P401R
-pub use embedded_hal::timer::{Cancel, CountDown, Periodic};
+pub use embedded_hal::timer::Periodic;
+pub use embedded_hal::timer::nb::{Cancel, CountDown};
 
 use pac::TIMER32;
 use core::marker::PhantomData;
@@ -164,7 +165,7 @@ macro_rules! timer32 {
                 #[inline]
                 fn timer_wrapped(&mut self) -> bool {
                     if(self.tim.$t32controli.read().mode().is_mode_0() ||
-                       self.tim.$t32risi.read().raw_ifg().bits()) {
+                       self.tim.$t32risi.read().raw_ifg().bit()) {
                        self.clear_interrupt_pending_bit();
                        true
                     } else {
@@ -286,7 +287,7 @@ macro_rules! timer32 {
                 type Error = Error;
                 type Time = Count;
 
-                fn try_start <T>(&mut self, count: T) -> Result<(), Self::Error>
+                fn start <T>(&mut self, count: T) -> Result<(), Self::Error>
                 where
                     T: Into<Self::Time> {
                     if(!self.timer_running()) {
@@ -303,7 +304,7 @@ macro_rules! timer32 {
                     }
                 }
 
-                fn try_wait(&mut self) -> nb::Result<(), Self::Error> {
+                fn wait(&mut self) -> nb::Result<(), Self::Error> {
                    if(self.timer_wrapped()) {
                         Ok(())
                    } else {
@@ -313,7 +314,7 @@ macro_rules! timer32 {
             }
 
             impl Cancel for Timer32Config <$Channeli, ClockDefined> {
-                fn try_cancel(&mut self) -> Result<(), Self::Error> {
+                fn cancel(&mut self) -> Result<(), Self::Error> {
                     if(self.timer_running()) {
                         self.stop_timer();
                         Ok(())
